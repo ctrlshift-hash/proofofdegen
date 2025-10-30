@@ -1,0 +1,149 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  walletAddress String?   @unique
+  email         String?   @unique
+  username      String    @unique
+  bio           String?
+  profileImage  String?
+  isVerified    Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  posts         Post[]
+  comments      Comment[]
+  likes         Like[]
+  reposts       Repost[]
+  tipsGiven     Tip[]     @relation("TipsGiven")
+  tipsReceived  Tip[]     @relation("TipsReceived")
+  followers     Follow[]  @relation("Followers")
+  following     Follow[]  @relation("Following")
+  channels      Channel[] @relation("ChannelMembers")
+  ownedChannels Channel[] @relation("ChannelOwner")
+
+  @@map("users")
+}
+
+model Post {
+  id          String   @id @default(cuid())
+  content     String
+  imageUrl    String?
+  likesCount  Int      @default(0)
+  repostsCount Int     @default(0)
+  commentsCount Int    @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  userId      String
+
+  // Relations
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comments    Comment[]
+  likes       Like[]
+  reposts     Repost[]
+  tips        Tip[]
+
+  @@map("posts")
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  postId    String
+  userId    String
+
+  // Relations
+  post      Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("comments")
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  postId    String
+  userId    String
+
+  // Relations
+  post      Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@map("likes")
+}
+
+model Repost {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  postId    String
+  userId    String
+
+  // Relations
+  post      Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@map("reposts")
+}
+
+model Follow {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  followerId  String
+  followingId String
+
+  // Relations
+  follower    User   @relation("Followers", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User   @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@map("follows")
+}
+
+model Tip {
+  id                  String   @id @default(cuid())
+  amount              Decimal
+  transactionSignature String? @unique
+  createdAt           DateTime @default(now())
+  fromUserId          String
+  toUserId            String
+  postId              String?
+
+  // Relations
+  fromUser            User   @relation("TipsGiven", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser              User   @relation("TipsReceived", fields: [toUserId], references: [id], onDelete: Cascade)
+  post                Post?  @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@map("tips")
+}
+
+model Channel {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  tokenAddress String? // Required token to access
+  minBalance  Decimal? // Minimum token balance required
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  ownerId     String
+
+  // Relations
+  owner       User   @relation("ChannelOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members     User[] @relation("ChannelMembers")
+
+  @@map("channels")
+}
