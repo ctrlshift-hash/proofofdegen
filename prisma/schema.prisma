@@ -35,6 +35,10 @@ model User {
   ownedChannels Channel[] @relation("ChannelOwner")
   accounts      Account[]
   sessions      Session[]
+  conversationsA Conversation[] @relation("ConversationA")
+  conversationsB Conversation[] @relation("ConversationB")
+  messagesSent   Message[] @relation("MessageSender")
+  messagesReceived Message[] @relation("MessageRecipient")
 
   @@map("users")
 }
@@ -149,6 +153,35 @@ model Channel {
   members     User[] @relation("ChannelMembers")
 
   @@map("channels")
+}
+
+model Conversation {
+  id         String    @id @default(cuid())
+  participantAId String
+  participantBId String
+  createdAt  DateTime  @default(now())
+  messages   Message[]
+
+  participantA User @relation("ConversationA", fields: [participantAId], references: [id], onDelete: Cascade)
+  participantB User @relation("ConversationB", fields: [participantBId], references: [id], onDelete: Cascade)
+
+  @@unique([participantAId, participantBId])
+  @@map("conversations")
+}
+
+model Message {
+  id             String    @id @default(cuid())
+  conversationId String
+  senderId       String
+  recipientId    String
+  content        String
+  createdAt      DateTime  @default(now())
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient      User         @relation("MessageRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
 }
 
 // NextAuth required models
