@@ -14,6 +14,7 @@ import {
   LogOut
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useWallet } from "@/contexts/WalletContext";
 
 interface HeaderProps {
   user?: {
@@ -27,6 +28,7 @@ interface HeaderProps {
 export default function Header({ user }: HeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const router = useRouter();
+  const { connected, publicKey } = useWallet();
 
   const navItems = [
     { href: "/", icon: Home, label: "Home" },
@@ -131,18 +133,24 @@ export default function Header({ user }: HeaderProps) {
               </div>
             ) : (
               <div className="flex items-center space-x-2">
-                <Link
-                  href="/auth/login"
-                  className="btn-secondary"
-                >
-                  Login
-                </Link>
-                <Link
-                  href="/auth/signup"
-                  className="btn-primary"
-                >
-                  Sign Up
-                </Link>
+                {connected && publicKey && (
+                  <button
+                    className="btn-secondary"
+                    onClick={async () => {
+                      try {
+                        const res = await fetch(`/api/users/byWallet?address=${publicKey.toBase58()}`);
+                        if (res.ok) {
+                          const data = await res.json();
+                          router.push(`/profile/${data.user.id}`);
+                        }
+                      } catch {}
+                    }}
+                  >
+                    My Profile
+                  </button>
+                )}
+                <Link href="/auth/login" className="btn-secondary">Login</Link>
+                <Link href="/auth/signup" className="btn-primary">Sign Up</Link>
               </div>
             )}
           </div>

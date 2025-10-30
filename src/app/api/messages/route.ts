@@ -6,24 +6,27 @@ import { prisma } from "@/lib/prisma";
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    let userId: string | null = session?.user?.id ?? null;
+
+    if (!userId) {
+      const wallet = request.headers.get("x-wallet-address") || request.headers.get("X-Wallet-Address");
+      if (wallet) {
+        const u = await prisma.user.findFirst({ where: { walletAddress: wallet } });
+        userId = u?.id ?? null;
+      }
+    }
+
+    if (!userId) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const userId = session.user.id;
-
     const conversations = await prisma.conversation.findMany({
-      where: {
-        OR: [{ participantAId: userId }, { participantBId: userId }],
-      },
+      where: { OR: [{ participantAId: userId }, { participantBId: userId }] },
       include: {
         messages: {
           orderBy: { createdAt: "desc" },
           take: 1,
-          include: {
-            sender: { select: { id: true, username: true } },
-            recipient: { select: { id: true, username: true } },
-          },
+          include: { sender: { select: { id: true, username: true } }, recipient: { select: { id: true, username: true } } },
         },
         participantA: { select: { id: true, username: true } },
         participantB: { select: { id: true, username: true } },
@@ -35,12 +38,7 @@ export async function GET(request: NextRequest) {
       const meIsA = c.participantAId === userId;
       const other = meIsA ? c.participantB : c.participantA;
       const lastMessage = c.messages[0] ?? null;
-      return {
-        id: c.id,
-        withUser: other,
-        lastMessage,
-        createdAt: c.createdAt,
-      };
+      return { id: c.id, withUser: other, lastMessage, createdAt: c.createdAt };
     });
 
     return NextResponse.json({ conversations: formatted });

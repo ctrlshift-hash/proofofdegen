@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { formatTimeAgo, formatNumber, extractTokenMentions } from "@/lib/utils";
 import CommentSection from "./CommentSection";
+import { useSession } from "next-auth/react";
+import { useWallet } from "@/contexts/WalletContext";
 
 interface Post {
   id: string;
@@ -40,6 +42,7 @@ interface PostCardProps {
   onRepost: (postId: string) => Promise<void>;
   onComment: (postId: string) => void;
   onTip?: (postId: string) => void;
+  onDeleted?: (postId: string) => void;
 }
 
 export default function PostCard({ 
@@ -47,12 +50,16 @@ export default function PostCard({
   onLike, 
   onRepost, 
   onComment, 
-  onTip 
+  onTip,
+  onDeleted
 }: PostCardProps) {
   const [isLiking, setIsLiking] = useState(false);
   const [isReposting, setIsReposting] = useState(false);
   const [showActions, setShowActions] = useState(false);
   const [showComments, setShowComments] = useState(false);
+  const { data: session } = useSession();
+  const { publicKey } = useWallet();
+  const [copied, setCopied] = useState(false);
 
   const tokenMentions = extractTokenMentions(post.content);
 
@@ -123,6 +130,13 @@ export default function PostCard({
             >
               {post.user.username}
             </Link>
+            <button
+              onClick={async () => { try { await navigator.clipboard.writeText(post.user.username); setCopied(true); setTimeout(() => setCopied(false), 1200); } catch {} }}
+              className="text-xs px-2 py-0.5 rounded bg-muted hover:bg-muted/80 transition-colors"
+              title="Copy username"
+            >
+              {copied ? "Copied" : "Copy"}
+            </button>
             
             {post.user.isVerified && (
               <CheckCircle className="h-4 w-4 text-blue-500" />
@@ -145,6 +159,25 @@ export default function PostCard({
             >
               <MoreHorizontal className="h-4 w-4" />
             </button>
+            {showActions && (
+              <div className="relative">
+                <div className="absolute right-0 mt-2 bg-card border border-border rounded-md shadow p-2 text-sm">
+                  <button
+                    className="block w-full text-left hover:text-red-500"
+                    onClick={async () => {
+                      try {
+                        const headers: Record<string, string> = {};
+                        if (!session?.user && publicKey) headers["X-Wallet-Address"] = publicKey.toBase58();
+                        const res = await fetch(`/api/posts/${post.id}`, { method: "DELETE", headers });
+                        if (res.ok) onDeleted?.(post.id);
+                      } catch (e) { console.error(e); }
+                    }}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Post Text */}

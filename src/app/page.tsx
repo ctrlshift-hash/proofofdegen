@@ -312,6 +312,7 @@ export default function HomePage() {
                 onRepost={handleRepost}
                 onComment={handleComment}
                 onTip={handleTip}
+                onDeleted={(id) => setPosts(prev => prev.filter(p => p.id !== id))}
               />
             ))
           )}

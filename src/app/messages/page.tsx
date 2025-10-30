@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Layout from "@/components/layout/Layout";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/Button";
+import { useWallet } from "@/contexts/WalletContext";
 
 interface UserRef { id: string; username: string }
 interface Message {
@@ -16,16 +17,23 @@ interface Message {
 
 export default function MessagesPage() {
   const { data: session, status } = useSession();
+  const { connected, publicKey } = useWallet();
   const [conversations, setConversations] = useState<Array<{ id: string; withUser: UserRef; lastMessage?: Message | null }>>([]);
   const [activeUsername, setActiveUsername] = useState<string>("");
   const [thread, setThread] = useState<Message[]>([]);
   const [composeTo, setComposeTo] = useState("");
   const [newMessage, setNewMessage] = useState("");
   const [loadingThread, setLoadingThread] = useState(false);
+  const canSend = !!session?.user || (connected && !!publicKey);
+  const myUsername = useMemo(() => (session?.user as any)?.username as string | undefined, [session?.user]);
 
   const loadConversations = async () => {
     try {
-      const res = await fetch("/api/messages");
+      const headers: Record<string, string> = {};
+      if (!status || status !== "authenticated") {
+        if (connected && publicKey) headers["X-Wallet-Address"] = publicKey.toBase58();
+      }
+      const res = await fetch("/api/messages", { headers });
       if (res.ok) {
         const data = await res.json();
         setConversations(data.conversations || []);
@@ -39,10 +47,14 @@ export default function MessagesPage() {
     setActiveUsername(username);
     setLoadingThread(true);
     try {
-      const res = await fetch(`/api/messages/${encodeURIComponent(username)}`);
+      const headers: Record<string, string> = {};
+      if (!session?.user && connected && publicKey) headers["X-Wallet-Address"] = publicKey.toBase58();
+      const res = await fetch(`/api/messages/${encodeURIComponent(username)}`, { headers });
       if (res.ok) {
         const data = await res.json();
         setThread(data.messages || []);
+      } else if (res.status === 401) {
+        console.warn("Not authenticated to open thread.");
       }
     } catch (e) {
       console.error("Failed to open thread", e);
@@ -51,38 +63,48 @@ export default function MessagesPage() {
     }
   };
 
+  const poll = useMemo(() => ({ interval: 3000 }), []);
+  useEffect(() => {
+    // initial
+    loadConversations();
+    // polling
+    const id = setInterval(async () => {
+      await loadConversations();
+      if (activeUsername) await openThread(activeUsername);
+    }, poll.interval);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeUsername, status, connected, publicKey]);
+
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     const to = activeUsername || composeTo;
     if (!to || !newMessage.trim()) return;
     try {
+      const body: any = { content: newMessage };
+      if (!session?.user && connected && publicKey) body.walletAddress = publicKey.toBase58();
       const res = await fetch(`/api/messages/${encodeURIComponent(to)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: newMessage }),
+        body: JSON.stringify(body),
       });
       if (res.ok) {
         const data = await res.json();
         if (activeUsername) {
           setThread(prev => [...prev, data.message]);
         } else {
-          // If composing a new DM, open the thread
           await openThread(to);
           await loadConversations();
         }
         setNewMessage("");
         setComposeTo("");
+      } else if (res.status === 401) {
+        console.warn("Not authenticated to send message.");
       }
     } catch (e) {
       console.error("Failed to send message", e);
     }
   };
-
-  useEffect(() => {
-    if (status === "authenticated") {
-      loadConversations();
-    }
-  }, [status]);
 
   return (
     <Layout user={session?.user ? {
@@ -98,12 +120,12 @@ export default function MessagesPage() {
             <Button size="sm" variant="outline" onClick={loadConversations}>Refresh</Button>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-1">
             {conversations.length === 0 ? (
               <p className="text-sm text-muted-foreground">No conversations yet</p>
             ) : conversations.map(c => (
-              <button key={c.id} onClick={() => openThread(c.withUser.username)} className="w-full text-left px-3 py-2 rounded-md hover:bg-muted/50">
-                <div className="font-medium">@{c.withUser.username}</div>
+              <button key={c.id} onClick={() => openThread(c.withUser.username)} className={`w-full text-left px-3 py-2 rounded-md transition-colors ${activeUsername === c.withUser.username ? "bg-accent" : "hover:bg-muted/50"}`}>
+                <div className="font-medium truncate">@{c.withUser.username}</div>
                 {c.lastMessage && (
                   <div className="text-xs text-muted-foreground truncate">
                     <span className="font-semibold">{c.lastMessage.sender.username}:</span> {c.lastMessage.content}
@@ -113,24 +135,17 @@ export default function MessagesPage() {
             ))}
           </div>
 
-          {/* Start new conversation */}
           <div className="mt-6 border-t border-border pt-4">
             <h3 className="text-sm font-semibold mb-2">Start a new DM</h3>
+            {!canSend && (
+              <div className="mb-2 text-xs text-muted-foreground">
+                You need to sign in with email or connect a wallet to send DMs.
+              </div>
+            )}
             <form onSubmit={sendMessage} className="space-y-2">
-              <input
-                type="text"
-                placeholder="Recipient username (without @)"
-                value={composeTo}
-                onChange={(e) => setComposeTo(e.target.value)}
-                className="input w-full"
-              />
-              <textarea
-                placeholder="Your message"
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                className="input w-full min-h-[80px]"
-              />
-              <Button type="submit" size="sm" disabled={!composeTo || !newMessage.trim()}>Send</Button>
+              <input type="text" placeholder="Recipient username (without @)" value={composeTo} onChange={(e) => setComposeTo(e.target.value)} className="input w-full" />
+              <textarea placeholder="Your message" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} className="input w-full min-h-[80px]" />
+              <Button type="submit" size="sm" disabled={(!composeTo && !activeUsername) || !newMessage.trim() || !canSend}>Send</Button>
             </form>
           </div>
         </div>
@@ -139,38 +154,55 @@ export default function MessagesPage() {
         <div className="card lg:col-span-2">
           {activeUsername ? (
             <div className="flex flex-col h-[600px]">
-              <div className="border-b border-border pb-3 mb-3">
+              {/* Sticky header */}
+              <div className="border-b border-border pb-3 mb-3 sticky top-0 bg-card z-10 flex items-center justify-between">
                 <h2 className="text-lg font-semibold">@{activeUsername}</h2>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={async () => { try { await navigator.clipboard.writeText(activeUsername); } catch {} }}
+                >
+                  Copy username
+                </Button>
               </div>
 
+              {/* Messages */}
               <div className="flex-1 overflow-y-auto space-y-3 pr-1">
                 {loadingThread ? (
                   <p className="text-sm text-muted-foreground">Loading…</p>
                 ) : thread.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No messages yet. Say hello!</p>
                 ) : (
-                  thread.map(m => (
-                    <div key={m.id} className="flex flex-col">
-                      <div className="text-xs text-muted-foreground">{m.sender.username}</div>
-                      <div className="px-3 py-2 rounded-lg bg-muted w-fit max-w-[80%]">{m.content}</div>
-                    </div>
-                  ))
+                  thread.map(m => {
+                    const mine = m.sender.username === myUsername;
+                    return (
+                      <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                        <div className={`max-w-[75%] px-3 py-2 rounded-2xl ${mine ? "bg-degen-purple/20 text-foreground" : "bg-muted text-foreground"}`}>
+                          {!mine && (
+                            <div className="text-[10px] text-muted-foreground mb-1">{m.sender.username}</div>
+                          )}
+                          <div>{m.content}</div>
+                          <div className="text-[10px] text-muted-foreground mt-1">{new Date(m.createdAt).toLocaleTimeString()}</div>
+                        </div>
+                      </div>
+                    );
+                  })
                 )}
               </div>
 
+              {/* Composer */}
               <form onSubmit={sendMessage} className="mt-3 flex items-center space-x-2">
-                <input
-                  type="text"
-                  placeholder="Type a message"
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  className="input w-full"
-                />
-                <Button type="submit" disabled={!newMessage.trim()}>Send</Button>
+                <input type="text" placeholder="Type a message" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} className="input w-full" />
+                <Button type="submit" disabled={!newMessage.trim() || !canSend}>Send</Button>
               </form>
             </div>
           ) : (
-            <div className="text-sm text-muted-foreground">Select a conversation or start a new one.</div>
+            <div className="text-sm text-muted-foreground">
+              Select a conversation or start a new one.
+              {!canSend && (
+                <div className="mt-2">You need to sign in with email or connect a wallet to send DMs.</div>
+              )}
+            </div>
           )}
         </div>
       </div>

@@ -14,6 +14,7 @@ export default function SearchPage() {
   const [q, setQ] = useState("");
   const [results, setResults] = useState<UserItem[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [copiedUser, setCopiedUser] = useState<string>("");
 
   const doSearch = async (query: string) => {
     const term = query.trim();
@@ -72,6 +73,13 @@ export default function SearchPage() {
                       {u.username.charAt(0).toUpperCase()}
                     </div>
                     <div className="font-medium">@{u.username}</div>
+                    <button
+                      className="text-xs px-2 py-0.5 rounded bg-muted hover:bg-muted/80 transition-colors"
+                      onClick={async () => { try { await navigator.clipboard.writeText(u.username); setCopiedUser(u.id); setTimeout(() => setCopiedUser(""), 1200);} catch{} }}
+                      title="Copy username"
+                    >
+                      {copiedUser === u.id ? "Copied" : "Copy"}
+                    </button>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Link href={`/profile/${u.id}`}>
