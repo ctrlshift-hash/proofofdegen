@@ -138,7 +138,7 @@ export default function Header({ user }: HeaderProps) {
                   Login
                 </Link>
                 <Link
-                  href="/auth/register"
+                  href="/auth/signup"
                   className="btn-primary"
                 >
                   Sign Up

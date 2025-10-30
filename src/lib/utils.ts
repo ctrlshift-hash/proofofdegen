@@ -20,9 +20,10 @@ export function formatNumber(num: number): string {
   return num.toString();
 }
 
-export function formatTimeAgo(date: Date): string {
+export function formatTimeAgo(date: Date | string): string {
   const now = new Date();
-  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  const diffInSeconds = Math.floor((now.getTime() - dateObj.getTime()) / 1000);
 
   if (diffInSeconds < 60) {
     return "just now";
@@ -43,7 +44,7 @@ export function formatTimeAgo(date: Date): string {
     return `${diffInDays}d`;
   }
 
-  return date.toLocaleDateString();
+  return dateObj.toLocaleDateString();
 }
 
 export function extractTokenMentions(text: string): string[] {

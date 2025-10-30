@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/Button";
 import { Loader2, Mail, User, Lock } from "lucide-react";
 
@@ -53,7 +54,52 @@ export default function EmailAuth({ mode, onSwitchMode, onSubmit }: EmailAuthPro
 
     setIsLoading(true);
     try {
-      await onSubmit(formData);
+      if (mode === "login") {
+        const result = await signIn("credentials", {
+          email: formData.email,
+          password: formData.password,
+          redirect: false,
+        });
+        
+        if (result?.error) {
+          console.error("Login failed:", result.error);
+        } else {
+          // Redirect to home page
+          window.location.href = "/";
+        }
+      } else {
+        // Registration
+        const response = await fetch("/api/auth/register", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: formData.email,
+            username: formData.username,
+            password: formData.password,
+          }),
+        });
+
+        if (response.ok) {
+          // Registration successful, now login
+          const result = await signIn("credentials", {
+            email: formData.email,
+            password: formData.password,
+            redirect: false,
+          });
+          
+          if (result?.error) {
+            console.error("Auto-login failed:", result.error);
+          } else {
+            // Redirect to home page
+            window.location.href = "/";
+          }
+        } else {
+          const error = await response.json();
+          console.error("Registration failed:", error.error);
+        }
+      }
     } catch (error) {
       console.error("Auth error:", error);
     } finally {

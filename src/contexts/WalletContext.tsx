@@ -1,14 +1,13 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { ConnectionProvider, WalletProvider } from "@solana/wallet-adapter-react";
+import { ConnectionProvider, WalletProvider, useWallet as useAdapterWallet } from "@solana/wallet-adapter-react";
 import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
 import { PhantomWalletAdapter, SolflareWalletAdapter } from "@solana/wallet-adapter-wallets";
 import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
 import { Connection, PublicKey } from "@solana/web3.js";
 
-// Import wallet adapter CSS
-require("@solana/wallet-adapter-react-ui/styles.css");
+// CSS will be imported in the layout
 
 interface WalletContextType {
   connection: Connection | null;
@@ -35,6 +34,7 @@ interface WalletProviderProps {
 
 export function WalletContextProvider({ children }: WalletProviderProps) {
   const [connection, setConnection] = useState<Connection | null>(null);
+  // These will be populated via the adapter bridge below
   const [publicKey, setPublicKey] = useState<PublicKey | null>(null);
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
@@ -52,18 +52,7 @@ export function WalletContextProvider({ children }: WalletProviderProps) {
     setConnection(conn);
   }, [endpoint]);
 
-  const connect = async () => {
-    setConnecting(true);
-    try {
-      // This would be handled by the wallet adapter
-      // For now, we'll simulate a connection
-      console.log("Connecting wallet...");
-    } catch (error) {
-      console.error("Failed to connect wallet:", error);
-    } finally {
-      setConnecting(false);
-    }
-  };
+  const connect = async () => {};
 
   const disconnect = async () => {
     try {
@@ -75,22 +64,36 @@ export function WalletContextProvider({ children }: WalletProviderProps) {
     }
   };
 
-  const value: WalletContextType = {
-    connection,
-    publicKey,
-    connected,
-    connecting,
-    connect,
-    disconnect,
-  };
+  // Bridge component to read adapter wallet state and expose it via our context
+  function WalletStateBridge({ children }: { children: ReactNode }) {
+    const adapter = useAdapterWallet();
+
+    useEffect(() => {
+      setConnected(adapter.connected);
+      // Adapter publicKey is a `PublicKey | null`
+      setPublicKey(adapter.publicKey ?? null);
+      setConnecting(adapter.connecting ?? false as boolean);
+    }, [adapter.connected, adapter.publicKey, adapter.connecting]);
+
+    const value: WalletContextType = {
+      connection,
+      publicKey,
+      connected,
+      connecting,
+      connect: adapter.connect,
+      disconnect: adapter.disconnect,
+    };
+
+    return (
+      <WalletContext.Provider value={value}>{children}</WalletContext.Provider>
+    );
+  }
 
   return (
     <ConnectionProvider endpoint={endpoint}>
       <WalletProvider wallets={wallets} autoConnect>
         <WalletModalProvider>
-          <WalletContext.Provider value={value}>
-            {children}
-          </WalletContext.Provider>
+          <WalletStateBridge>{children}</WalletStateBridge>
         </WalletModalProvider>
       </WalletProvider>
     </ConnectionProvider>

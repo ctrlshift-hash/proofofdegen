@@ -9,9 +9,9 @@ import { Wallet, Mail } from "lucide-react";
 
 type AuthMode = "wallet" | "email";
 
-export default function LoginPage() {
+export default function SignupPage() {
   const [authMode, setAuthMode] = useState<AuthMode>("wallet");
-  const [emailMode, setEmailMode] = useState<"login" | "register">("login");
+  const [emailMode, setEmailMode] = useState<"login" | "register">("register");
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -19,14 +19,14 @@ export default function LoginPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center space-x-2 mb-4">
-            <div className="h-10 w-10 rounded-lg bg-gradient-to-r from-degen-purple to-degen-pink flex items-center justify-center">
+            <div className="h-10 w-10 rounded-lg bg-gradient-to-r from-purple-600 to-pink-500 flex items-center justify-center">
               <span className="text-white font-bold text-xl">D</span>
             </div>
             <span className="text-2xl font-bold gradient-text">DegenHub</span>
           </Link>
-          <h1 className="text-2xl font-bold mb-2">Welcome back</h1>
+          <h1 className="text-2xl font-bold mb-2">Join DegenHub</h1>
           <p className="text-muted-foreground">
-            Choose your preferred sign-in method
+            Create your account to get started
           </p>
         </div>
 
@@ -72,9 +72,9 @@ export default function LoginPage() {
         {/* Footer */}
         <div className="text-center mt-6 text-sm text-muted-foreground">
           <p>
-            Don't have an account?{" "}
-            <Link href="/auth/signup" className="text-purple-600 hover:underline">
-              Sign up
+            Already have an account?{" "}
+            <Link href="/auth/login" className="text-purple-600 hover:underline">
+              Sign in
             </Link>
           </p>
           <p className="mt-2">
@@ -92,4 +92,3 @@ export default function LoginPage() {
     </div>
   );
 }
-

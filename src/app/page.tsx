@@ -1,14 +1,35 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import Layout from "@/components/layout/Layout";
 import CreatePost from "@/components/posts/CreatePost";
 import PostCard from "@/components/posts/PostCard";
 import { Button } from "@/components/ui/Button";
 import { Loader2, RefreshCw } from "lucide-react";
 
+// Type definition for posts
+interface Post {
+  id: string;
+  content: string;
+  imageUrl?: string;
+  likesCount: number;
+  repostsCount: number;
+  commentsCount: number;
+  createdAt: Date | string;
+  user: {
+    id: string;
+    username: string;
+    walletAddress?: string;
+    isVerified: boolean;
+    profileImage?: string;
+  };
+  isLiked: boolean;
+  isReposted: boolean;
+}
+
 // Mock data for development
-const mockPosts = [
+const mockPosts: Post[] = [
   {
     id: "1",
     content: "Just discovered this amazing new DeFi protocol! $SOL is pumping hard today 🚀",
@@ -66,44 +87,48 @@ const mockPosts = [
 ];
 
 export default function HomePage() {
-  const [posts, setPosts] = useState(mockPosts);
-  const [isLoading, setIsLoading] = useState(false);
+  const { data: session, status } = useSession();
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Mock user for development
-  const user = {
-    id: "current-user",
-    username: "degenuser",
-    walletAddress: "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM",
-    isVerified: true,
+  // Fetch posts from API
+  const fetchPosts = async () => {
+    try {
+      const response = await fetch("/api/posts");
+      if (response.ok) {
+        const data = await response.json();
+        setPosts(data.posts);
+      }
+    } catch (error) {
+      console.error("Failed to fetch posts:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  useEffect(() => {
+    fetchPosts();
+  }, []);
 
   const handleCreatePost = async (content: string, imageUrl?: string) => {
     setIsSubmitting(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const newPost = {
-        id: Date.now().toString(),
-        content,
-        imageUrl,
-        likesCount: 0,
-        repostsCount: 0,
-        commentsCount: 0,
-        createdAt: new Date(),
-        user: {
-          id: user.id,
-          username: user.username,
-          walletAddress: user.walletAddress,
-          isVerified: user.isVerified,
-          profileImage: undefined,
+      const response = await fetch("/api/posts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-        isLiked: false,
-        isReposted: false,
-      };
-      
-      setPosts(prev => [newPost, ...prev]);
+        body: JSON.stringify({ content, imageUrl }),
+      });
+
+      if (response.ok) {
+        const newPost = await response.json();
+        setPosts(prev => [newPost, ...prev]);
+      } else {
+        const error = await response.json();
+        console.error("Failed to create post:", error);
+      }
     } catch (error) {
       console.error("Failed to create post:", error);
     } finally {
@@ -112,34 +137,56 @@ export default function HomePage() {
   };
 
   const handleLike = async (postId: string) => {
-    setPosts(prev => prev.map(post => {
-      if (post.id === postId) {
-        return {
-          ...post,
-          isLiked: !post.isLiked,
-          likesCount: post.isLiked ? post.likesCount - 1 : post.likesCount + 1,
-        };
+    try {
+      const response = await fetch(`/api/posts/${postId}/like`, {
+        method: "POST",
+      });
+
+      if (response.ok) {
+        const { liked } = await response.json();
+        setPosts(prev => prev.map(post => {
+          if (post.id === postId) {
+            return {
+              ...post,
+              isLiked: liked,
+              likesCount: liked ? post.likesCount + 1 : post.likesCount - 1,
+            };
+          }
+          return post;
+        }));
       }
-      return post;
-    }));
+    } catch (error) {
+      console.error("Failed to toggle like:", error);
+    }
   };
 
   const handleRepost = async (postId: string) => {
-    setPosts(prev => prev.map(post => {
-      if (post.id === postId) {
-        return {
-          ...post,
-          isReposted: !post.isReposted,
-          repostsCount: post.isReposted ? post.repostsCount - 1 : post.repostsCount + 1,
-        };
+    try {
+      const response = await fetch(`/api/posts/${postId}/repost`, {
+        method: "POST",
+      });
+
+      if (response.ok) {
+        const { reposted } = await response.json();
+        setPosts(prev => prev.map(post => {
+          if (post.id === postId) {
+            return {
+              ...post,
+              isReposted: reposted,
+              repostsCount: reposted ? post.repostsCount + 1 : post.repostsCount - 1,
+            };
+          }
+          return post;
+        }));
       }
-      return post;
-    }));
+    } catch (error) {
+      console.error("Failed to toggle repost:", error);
+    }
   };
 
   const handleComment = (postId: string) => {
+    // Comment functionality is now handled in PostCard component
     console.log("Comment on post:", postId);
-    // TODO: Implement comment functionality
   };
 
   const handleTip = (postId: string) => {
@@ -149,17 +196,24 @@ export default function HomePage() {
 
   const handleRefresh = async () => {
     setIsLoading(true);
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      // In real app, fetch fresh posts from API
-    } finally {
-      setIsLoading(false);
-    }
+    await fetchPosts();
   };
 
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
   return (
-    <Layout user={user}>
+    <Layout user={session?.user ? {
+      id: session.user.id,
+      username: session.user.username || "",
+      walletAddress: undefined, // TODO: Get from wallet connection
+      isVerified: session.user.isVerified || false,
+    } : null}>
       <div className="max-w-2xl mx-auto space-y-6">
         {/* Create Post */}
         <CreatePost 
@@ -187,7 +241,12 @@ export default function HomePage() {
 
         {/* Posts Feed */}
         <div className="space-y-4">
-          {posts.length === 0 ? (
+          {isLoading ? (
+            <div className="text-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+              <p className="text-muted-foreground">Loading posts...</p>
+            </div>
+          ) : posts.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-muted-foreground mb-4">No posts yet</p>
               <p className="text-sm text-muted-foreground">

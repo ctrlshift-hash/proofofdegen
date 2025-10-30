@@ -13,6 +13,7 @@ import {
   Wallet
 } from "lucide-react";
 import { formatTimeAgo, formatNumber, extractTokenMentions } from "@/lib/utils";
+import CommentSection from "./CommentSection";
 
 interface Post {
   id: string;
@@ -21,7 +22,7 @@ interface Post {
   likesCount: number;
   repostsCount: number;
   commentsCount: number;
-  createdAt: Date;
+  createdAt: Date | string;
   user: {
     id: string;
     username: string;
@@ -51,6 +52,7 @@ export default function PostCard({
   const [isLiking, setIsLiking] = useState(false);
   const [isReposting, setIsReposting] = useState(false);
   const [showActions, setShowActions] = useState(false);
+  const [showComments, setShowComments] = useState(false);
 
   const tokenMentions = extractTokenMentions(post.content);
 
@@ -195,7 +197,7 @@ export default function PostCard({
             </button>
 
             <button
-              onClick={() => onComment(post.id)}
+              onClick={() => setShowComments(true)}
               className="flex items-center space-x-2 px-3 py-2 rounded-lg text-muted-foreground hover:text-blue-500 hover:bg-blue-500/10 transition-colors"
             >
               <MessageCircle className="h-4 w-4" />
@@ -235,6 +237,13 @@ export default function PostCard({
           </div>
         </div>
       </div>
+
+      {/* Comment Section */}
+      <CommentSection
+        postId={post.id}
+        isOpen={showComments}
+        onClose={() => setShowComments(false)}
+      />
     </div>
   );
 }

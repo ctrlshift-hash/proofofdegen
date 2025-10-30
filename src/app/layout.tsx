@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import "@solana/wallet-adapter-react-ui/styles.css";
 import { WalletContextProvider } from "@/contexts/WalletContext";
+import SessionProvider from "@/components/providers/SessionProvider";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -18,9 +20,11 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={inter.className}>
-        <WalletContextProvider>
-          {children}
-        </WalletContextProvider>
+        <SessionProvider>
+          <WalletContextProvider>
+            {children}
+          </WalletContextProvider>
+        </SessionProvider>
       </body>
     </html>
   );
