@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { WalletConnect } from "@/components/auth/WalletConnect";
+import WalletConnect from "@/components/auth/WalletConnect";
 import EmailAuth from "@/components/auth/EmailAuth";
 import { Button } from "@/components/ui/Button";
 import { Wallet, Mail } from "lucide-react";
