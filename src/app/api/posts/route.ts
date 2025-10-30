@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "../auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(request: NextRequest) {
@@ -104,13 +104,14 @@ export async function POST(request: NextRequest) {
 
     if (session?.user?.id) {
       // Authenticated user
+      const dbUser = await prisma.user.findUnique({ where: { id: session.user.id } });
       userId = session.user.id;
       userData = {
         id: session.user.id,
         username: session.user.username || "user",
-        walletAddress: null, // TODO: Get from wallet connection
+        walletAddress: dbUser?.walletAddress ?? null,
         isVerified: session.user.isVerified || false,
-        profileImage: null,
+        profileImage: dbUser?.profileImage ?? null,
       };
     } else {
       // Guest user - create or find a guest user

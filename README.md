@@ -2,6 +2,27 @@
 
 A crypto degen social media platform built with Next.js 14, featuring dual authentication, token-gated channels, and SOL tipping functionality.
 
+## IMPORTANT: Production/Deployment Notes
+- You **must** use a CLOUD DATABASE (PlanetScale, Supabase, Neon/Postgres, etc). Do not use local SQLite or a local Postgres instance for deployments like Vercel!
+- Update your `prisma/schema.prisma` to:
+  ```prisma
+  datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+  }
+  ```
+- Set the env var `DATABASE_URL` to your chosen cloud DB connection string before running migrations.
+
+### Example (PlanetScale):
+1. Deploy a DB via PlanetScale.
+2. Copy your connection string and set it in Vercel/your `.env`:
+   `DATABASE_URL="postgresql://..."`
+3. Run:
+   ```bash
+   npx prisma migrate deploy # or npx prisma db push
+   npx prisma generate
+   ```
+
 ## ✨ Features
 
 ### 🔐 Dual Authentication System

@@ -6,6 +6,7 @@ import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
 import { PhantomWalletAdapter, SolflareWalletAdapter } from "@solana/wallet-adapter-wallets";
 import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
 import { Connection, PublicKey } from "@solana/web3.js";
+import { useSession } from "next-auth/react";
 
 // CSS will be imported in the layout
 
@@ -38,6 +39,7 @@ export function WalletContextProvider({ children }: WalletProviderProps) {
   const [publicKey, setPublicKey] = useState<PublicKey | null>(null);
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
+  const { data: session } = useSession(); // get current user session
 
   const network = WalletAdapterNetwork.Devnet;
   const endpoint = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.devnet.solana.com";
@@ -51,6 +53,24 @@ export function WalletContextProvider({ children }: WalletProviderProps) {
     const conn = new Connection(endpoint, "confirmed");
     setConnection(conn);
   }, [endpoint]);
+
+  useEffect(() => {
+    // Sync wallet to backend when connected and authenticated
+    async function syncWalletToProfile() {
+      if (connected && publicKey && session?.user?.id) {
+        try {
+          await fetch("/api/auth/updateWallet", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ walletAddress: publicKey.toBase58() }),
+          });
+        } catch (error) {
+          console.error("Failed to sync wallet address to backend:", error);
+        }
+      }
+    }
+    syncWalletToProfile();
+  }, [connected, publicKey, session]);
 
   const connect = async () => {};
 
