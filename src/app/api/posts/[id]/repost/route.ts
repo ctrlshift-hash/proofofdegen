@@ -84,6 +84,21 @@ export async function POST(
         data: { repostsCount: { increment: 1 } },
       });
 
+      // Create notification if actor is authenticated and not own post
+      if (session?.user?.id) {
+        const postOwner = post.userId;
+        if (postOwner !== session.user.id) {
+          await prisma.notification.create({
+            data: {
+              userId: postOwner,
+              actorId: session.user.id,
+              type: "REPOST",
+              postId,
+            },
+          });
+        }
+      }
+
       return NextResponse.json({ reposted: true });
     }
   } catch (error) {

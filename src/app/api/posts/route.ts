@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    const { content, imageUrl } = await request.json();
+    const { content, imageUrl, walletAddress } = await request.json();
 
     if (!content || content.trim().length === 0) {
       return NextResponse.json(
@@ -113,23 +113,33 @@ export async function POST(request: NextRequest) {
         isVerified: session.user.isVerified || false,
         profileImage: dbUser?.profileImage ?? null,
       };
+    } else if (walletAddress) {
+      // Wallet-only guest: find or create a pseudo user tied to wallet
+      let walletUser = await prisma.user.findFirst({ where: { walletAddress } });
+      if (!walletUser) {
+        const anonName = `anon_${walletAddress.slice(0, 6)}`;
+        walletUser = await prisma.user.create({
+          data: { username: anonName, walletAddress, email: null, password: null, isVerified: true },
+        });
+      }
+      userId = walletUser.id;
+      userData = {
+        id: walletUser.id,
+        username: walletUser.username,
+        walletAddress: walletUser.walletAddress,
+        isVerified: walletUser.isVerified,
+        profileImage: walletUser.profileImage ?? null,
+      };
     } else {
       // Guest user - create or find a guest user
       let guestUser = await prisma.user.findFirst({
         where: { username: "guest" },
       });
-
       if (!guestUser) {
         guestUser = await prisma.user.create({
-          data: {
-            username: "guest",
-            email: null,
-            password: null,
-            isVerified: false,
-          },
+          data: { username: "guest", email: null, password: null, isVerified: false },
         });
       }
-
       userId = guestUser.id;
       userData = {
         id: guestUser.id,
@@ -161,17 +171,17 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       ...post,
-      user: userData, // Use our custom user data
+      user: userData,
       likesCount: 0,
       repostsCount: 0,
       commentsCount: 0,
       isLiked: false,
       isReposted: false,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating post:", error);
     return NextResponse.json(
-      { error: "Failed to create post" },
+      { error: "Failed to create post", detail: (error?.message || String(error)) },
       { status: 500 }
     );
   }

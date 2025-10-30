@@ -84,6 +84,21 @@ export async function POST(
         data: { likesCount: { increment: 1 } },
       });
 
+      // Create notification if actor is authenticated and not liking own post
+      if (session?.user?.id) {
+        const postOwner = post.userId;
+        if (postOwner !== session.user.id) {
+          await prisma.notification.create({
+            data: {
+              userId: postOwner,
+              actorId: session.user.id,
+              type: "LIKE",
+              postId,
+            },
+          });
+        }
+      }
+
       return NextResponse.json({ liked: true });
     }
   } catch (error) {

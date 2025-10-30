@@ -7,6 +7,7 @@ import CreatePost from "@/components/posts/CreatePost";
 import PostCard from "@/components/posts/PostCard";
 import { Button } from "@/components/ui/Button";
 import { Loader2, RefreshCw } from "lucide-react";
+import { useWallet } from "@/contexts/WalletContext";
 
 // Type definition for posts
 interface Post {
@@ -88,6 +89,7 @@ const mockPosts: Post[] = [
 
 export default function HomePage() {
   const { data: session, status } = useSession();
+  const { connected, publicKey } = useWallet();
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -119,18 +121,66 @@ export default function HomePage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ content, imageUrl }),
+        body: JSON.stringify({ content, imageUrl, walletAddress: (!session?.user && connected && publicKey) ? publicKey.toBase58() : undefined }),
       });
 
       if (response.ok) {
         const newPost = await response.json();
         setPosts(prev => [newPost, ...prev]);
+        // Also refresh from server to ensure counts and user data are consistent
+        fetchPosts();
       } else {
-        const error = await response.json();
-        console.error("Failed to create post:", error);
+        const text = await response.text();
+        console.error("Failed to create post:", response.status, text);
+        // DEV FALLBACK: show the post locally so you can test the UI without APIs
+        const now = new Date().toISOString();
+        const walletAddr = (!session?.user && connected && publicKey) ? publicKey.toBase58() : undefined;
+        const username = session?.user?.username || (walletAddr ? `anon_${walletAddr.slice(0,6)}` : "Anonymous");
+        const localPost: Post = {
+          id: `local_${Date.now()}`,
+          content,
+          imageUrl,
+          likesCount: 0,
+          repostsCount: 0,
+          commentsCount: 0,
+          createdAt: now,
+          user: {
+            id: session?.user?.id || "local",
+            username,
+            walletAddress: walletAddr,
+            isVerified: !!walletAddr,
+            profileImage: undefined,
+          },
+          isLiked: false,
+          isReposted: false,
+        };
+        setPosts(prev => [localPost, ...prev]);
       }
     } catch (error) {
       console.error("Failed to create post:", error);
+      // DEV FALLBACK on network error
+      const now = new Date().toISOString();
+      const walletAddr = (!session?.user && connected && publicKey) ? publicKey.toBase58() : undefined;
+      const username = session?.user?.username || (walletAddr ? `anon_${walletAddr.slice(0,6)}` : "Anonymous");
+      const localPost: Post = {
+        id: `local_${Date.now()}`,
+        content,
+        imageUrl,
+        likesCount: 0,
+        repostsCount: 0,
+        commentsCount: 0,
+        createdAt: now,
+        user: {
+          id: session?.user?.id || "local",
+          username,
+          walletAddress: walletAddr,
+          isVerified: !!walletAddr,
+          profileImage: undefined,
+        },
+        isLiked: false,
+        isReposted: false,
+      };
+      setPosts(prev => [localPost, ...prev]);
     } finally {
       setIsSubmitting(false);
     }

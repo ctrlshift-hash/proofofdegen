@@ -90,6 +90,16 @@ export async function POST(
       },
     });
 
+    // Create notification for the recipient
+    await prisma.notification.create({
+      data: {
+        userId: other.id,
+        actorId: meId,
+        type: "MESSAGE",
+        messageId: message.id,
+      },
+    });
+
     return NextResponse.json({ message });
   } catch (error) {
     console.error("Send message error:", error);

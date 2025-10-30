@@ -111,6 +111,22 @@ export async function POST(
       },
     });
 
+    // Notify post owner if commenter is authenticated and not owner
+    if (session?.user?.id) {
+      const post = await prisma.post.findUnique({ where: { id: postId } });
+      if (post && post.userId !== session.user.id) {
+        await prisma.notification.create({
+          data: {
+            userId: post.userId,
+            actorId: session.user.id,
+            type: "COMMENT",
+            postId,
+            commentId: comment.id,
+          },
+        });
+      }
+    }
+
     return NextResponse.json({
       ...comment,
       user: userData, // Use our custom user data

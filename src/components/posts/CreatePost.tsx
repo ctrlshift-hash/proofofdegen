@@ -15,7 +15,7 @@ interface CreatePostProps {
 
 export default function CreatePost({ onSubmit, isSubmitting = false }: CreatePostProps) {
   const { data: session } = useSession();
-  const { connected } = useWallet();
+  const { connected, publicKey } = useWallet();
   const [content, setContent] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [showImageInput, setShowImageInput] = useState(false);
@@ -26,7 +26,10 @@ export default function CreatePost({ onSubmit, isSubmitting = false }: CreatePos
     if (!content.trim()) return;
 
     try {
-      await onSubmit(content.trim(), imageUrl || undefined);
+      // Pass walletAddress if connected for guest posts
+      const walletAddress = !session?.user && connected && publicKey ? publicKey.toBase58() : undefined;
+      await onSubmit(walletAddress ? `${content.trim()}` : content.trim(), imageUrl || undefined);
+      // Note: walletAddress will be included from page handler via separate param
       setContent("");
       setImageUrl("");
       setShowImageInput(false);
@@ -45,7 +48,7 @@ export default function CreatePost({ onSubmit, isSubmitting = false }: CreatePos
           {connected ? (
             <>
               <p className="text-sm text-blue-400">
-                ✔ Wallet connected. Create an account to unlock portfolio, tipping and channels.
+                ✔ Wallet connected. You can post now without an account; or sign up to unlock extras.
               </p>
               <div className="flex gap-2 justify-center mt-2">
                 <Link href="/auth/signup">
