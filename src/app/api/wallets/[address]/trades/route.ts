@@ -264,7 +264,7 @@ export async function GET(
       // Also check for new token accounts (pump.fun might create new accounts)
       for (const post of postBalances) {
         const pre = preBalances.find(
-          p => p.accountIndex === post.accountIndex && 
+          (p: any) => p.accountIndex === post.accountIndex && 
                p.mint === post.mint &&
                p.owner === post.owner
         );

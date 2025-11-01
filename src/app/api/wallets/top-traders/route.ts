@@ -158,7 +158,7 @@ export async function GET(request: NextRequest) {
             ]);
 
             // Fetch memecoin balances (only check if SOL or USDT > 0 to save requests)
-            const memecoins = [];
+            const memecoins: any[] = [];
             if (solBalance > 0 || usdtBalance > 0) {
               const memecoinPromises = Object.entries(MEMECOIN_MINTS).map(([symbol, mint]) =>
                 getTokenBalance(connection, user.walletAddress!, mint).then(balance => ({

@@ -9,7 +9,7 @@ import Link from "next/link";
 import { useWallet } from "@/contexts/WalletContext";
 
 interface CreatePostProps {
-  onSubmit: (content: string, imageUrl?: string) => Promise<void>;
+  onSubmit: (content: string, imageUrls?: string[]) => Promise<void>;
   isSubmitting?: boolean;
 }
 
