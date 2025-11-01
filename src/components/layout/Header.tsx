@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useWallet } from "@/contexts/WalletContext";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { playNotificationSound } from "@/lib/sounds";
 import { usePathname } from "next/navigation";
 
@@ -37,7 +37,7 @@ export default function Header({ user }: HeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { connected, publicKey, disconnect } = useWallet();
-  const { data: session, signOut } = useSession();
+  const { data: session } = useSession();
   
   // Clear unread count when on notifications page
   const isOnNotificationsPage = pathname === "/notifications" || pathname?.startsWith("/notifications");
