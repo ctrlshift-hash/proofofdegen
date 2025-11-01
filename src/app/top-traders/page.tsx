@@ -233,9 +233,9 @@ export default function TopTradersPage() {
                                 t.tokenOutSymbol || t.tokenOut
                               )}
                             </td>
-                            <td className="p-3 text-right">{formatNumber(bought.toFixed(4))} SOL{t.tokenUnitsIn !== undefined ? <span className="text-xs text-gray-400"> • {formatUnits(t.tokenUnitsIn)}</span> : null}</td>
-                            <td className="p-3 text-right">{formatNumber(sold.toFixed(4))} SOL{t.tokenUnitsOut !== undefined ? <span className="text-xs text-gray-400"> • {formatUnits(t.tokenUnitsOut)}</span> : null}</td>
-                            <td className="p-3 text-right">{formatNumber(holding.toFixed(4))} SOL</td>
+                            <td className="p-3 text-right">{bought.toFixed(4)} SOL{t.tokenUnitsIn !== undefined ? <span className="text-xs text-gray-400"> • {formatUnits(t.tokenUnitsIn)}</span> : null}</td>
+                            <td className="p-3 text-right">{sold.toFixed(4)} SOL{t.tokenUnitsOut !== undefined ? <span className="text-xs text-gray-400"> • {formatUnits(t.tokenUnitsOut)}</span> : null}</td>
+                            <td className="p-3 text-right">{holding.toFixed(4)} SOL</td>
                             <td className={`p-3 text-right ${roi >= 0 ? "text-green-400" : "text-red-400"}`}>{roi >= 0 ? "+" : ""}{roi.toFixed(1)}%</td>
                             <td className="p-3 text-xs">{duration}</td>
                           </tr>
