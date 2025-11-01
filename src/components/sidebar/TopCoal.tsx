@@ -28,9 +28,12 @@ export default function TopCoal() {
         if (parsed.timestamp && Date.now() - parsed.timestamp < 2 * 60 * 1000) {
           setPosts(parsed.data || []);
           setLoading(false);
+          return; // Found valid cache, stop here
         }
       }
     } catch {}
+    // If no valid cache, loading state will be handled by the fetch below
+    setLoading(false); // Turn off loading even if no cache
   }, []);
 
   useEffect(() => {
@@ -52,7 +55,9 @@ export default function TopCoal() {
             } catch {}
           }
         }
-      } catch {}
+      } catch (e) {
+        console.error("Failed to load top coal:", e);
+      }
     };
     load();
     const interval = setInterval(load, 15000); // refresh every 15s
