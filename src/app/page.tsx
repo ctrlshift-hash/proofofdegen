@@ -37,7 +37,7 @@ const mockPosts: Post[] = [
   {
     id: "1",
     content: "Just discovered this amazing new DeFi protocol! $SOL is pumping hard today 🚀",
-    imageUrl: undefined,
+    imageUrls: undefined,
     likesCount: 42,
     repostsCount: 12,
     commentsCount: 8,
@@ -55,7 +55,7 @@ const mockPosts: Post[] = [
   {
     id: "2",
     content: "The $BONK community is absolutely insane! Love the energy here 💎🙌",
-    imageUrl: undefined,
+    imageUrls: undefined,
     likesCount: 156,
     repostsCount: 34,
     commentsCount: 23,
@@ -73,7 +73,7 @@ const mockPosts: Post[] = [
   {
     id: "3",
     content: "Building something cool on Solana. The ecosystem is growing so fast! $RAY $JUP $ORCA",
-    imageUrl: "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=500&h=300&fit=crop",
+    imageUrls: ["https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=500&h=300&fit=crop"],
     likesCount: 89,
     repostsCount: 19,
     commentsCount: 15,
