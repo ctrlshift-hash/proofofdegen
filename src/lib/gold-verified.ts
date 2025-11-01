@@ -10,7 +10,7 @@ export const GOLD_VERIFIED_USERNAMES = new Set<string>([
 export function isGoldVerified(user: { username?: string | null; walletAddress?: string | null }): boolean {
   const name = (user.username || "").toLowerCase();
   const wallet = (user.walletAddress || "").toLowerCase();
-  return GOLD_VERIFIED_USERNAMES.has(name) || (wallet && GOLD_VERIFIED_WALLETS.has(wallet));
+  return GOLD_VERIFIED_USERNAMES.has(name) || (!!wallet && GOLD_VERIFIED_WALLETS.has(wallet));
 }
 
 

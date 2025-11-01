@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Layout from "@/components/layout/Layout";
 import { useSession } from "next-auth/react";
-import { formatNumber } from "@/lib/utils";
 import { TOP_TRADER_PROFILES, TopTraderProfile } from "@/lib/top-trader-profiles";
 import WhoToFollow from "@/components/sidebar/WhoToFollow";
 import { NEWS_ARTICLES } from "@/lib/news";

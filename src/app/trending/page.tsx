@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Suspense } from "react";
 import Layout from "@/components/layout/Layout";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/Button";
@@ -21,7 +21,7 @@ interface TrendingHashtag {
   rank: number;
 }
 
-export default function TrendingPage() {
+function TrendingContent() {
   const { data: session } = useSession();
   const { connected, publicKey } = useWallet();
   const searchParams = useSearchParams();
@@ -39,7 +39,7 @@ export default function TrendingPage() {
     if (hashtagParam) {
       setSelectedHashtag(hashtagParam);
     }
-  }, []);
+  }, [searchParams]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -234,6 +234,14 @@ export default function TrendingPage() {
         )}
       </div>
     </Layout>
+  );
+}
+
+export default function TrendingPage() {
+  return (
+    <Suspense fallback={<div className="max-w-2xl mx-auto p-4">Loading...</div>}>
+      <TrendingContent />
+    </Suspense>
   );
 }
 
