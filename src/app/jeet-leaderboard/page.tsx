@@ -609,8 +609,7 @@ export default function JeetLeaderboardPage() {
                       <td className="p-3">{new Date(t.timestamp).toLocaleString()}</td>
                       <td className="p-3 text-gray-400">{t.note || ""}</td>
                       <td className="p-3 text-xs">
-                        {t.txUrl && (<a href={t.txUrl} target="_blank" className="underline mr-2">Tx</a>)}
-                        {t.tokenUrl && (<a href={t.tokenUrl} target="_blank" className="underline">Token</a>)}
+                        {/* Links removed - not in type */}
                       </td>
                     </tr>
                   ))}
