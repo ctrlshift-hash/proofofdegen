@@ -27,9 +27,31 @@ export default function WhoToFollow() {
   const [loading, setLoading] = useState(true);
   const [followingStates, setFollowingStates] = useState<Record<string, boolean>>({});
 
+  // Load cached suggestions on mount
+  useEffect(() => {
+    try {
+      const cached = localStorage.getItem("whoToFollow_suggestions");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed.timestamp && Date.now() - parsed.timestamp < 30 * 60 * 1000) {
+          setSuggestions(parsed.data || []);
+          setLoading(false);
+        } else {
+          setLoading(false);
+        }
+      } else {
+        setLoading(false);
+      }
+    } catch {
+      setLoading(false);
+    }
+  }, []);
+
   const loadSuggestions = async () => {
     try {
-      setLoading(true);
+      const hasData = suggestions.length > 0;
+      if (!hasData) setLoading(true);
+      
       const headers: Record<string, string> = {};
       if (!session?.user && connected && publicKey) {
         headers["X-Wallet-Address"] = publicKey.toBase58();
@@ -38,13 +60,23 @@ export default function WhoToFollow() {
       const res = await fetch("/api/users/suggestions", { headers });
       if (res.ok) {
         const data = await res.json();
-        setSuggestions(data.suggestions || []);
-        // Initialize following states
-        const states: Record<string, boolean> = {};
-        (data.suggestions || []).forEach((user: SuggestedUser) => {
-          states[user.id] = user.isFollowing;
-        });
-        setFollowingStates(states);
+        const newSuggestions = data.suggestions || [];
+        if (Array.isArray(newSuggestions)) {
+          setSuggestions(newSuggestions);
+          // Cache suggestions
+          try {
+            localStorage.setItem("whoToFollow_suggestions", JSON.stringify({
+              data: newSuggestions,
+              timestamp: Date.now()
+            }));
+          } catch {}
+          // Initialize following states
+          const states: Record<string, boolean> = {};
+          newSuggestions.forEach((user: SuggestedUser) => {
+            states[user.id] = user.isFollowing;
+          });
+          setFollowingStates(states);
+        }
       }
     } catch (error) {
       console.error("Failed to load suggestions:", error);

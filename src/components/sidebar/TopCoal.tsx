@@ -28,12 +28,15 @@ export default function TopCoal() {
         if (parsed.timestamp && Date.now() - parsed.timestamp < 2 * 60 * 1000) {
           setPosts(parsed.data || []);
           setLoading(false);
-          return; // Found valid cache, stop here
+        } else {
+          setLoading(false);
         }
+      } else {
+        setLoading(false);
       }
-    } catch {}
-    // If no valid cache, loading state will be handled by the fetch below
-    setLoading(false); // Turn off loading even if no cache
+    } catch {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
