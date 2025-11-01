@@ -30,33 +30,83 @@ export async function POST(
   try {
     const session = await getServerSession(authOptions);
     const { id: postId } = await params;
-    const { content } = await request.json();
+    const { content, walletAddress } = await request.json();
 
     if (!content || content.trim().length === 0) {
       return NextResponse.json({ error: "Content is required" }, { status: 400 });
     }
 
+    // Support both email and wallet authentication
     let userId: string;
+    let actorId: string | null = null; // For notifications
     let userData: any;
 
     if (session?.user?.id) {
-      // Authenticated user
+      // Email authenticated user
       userId = session.user.id;
-      userData = { id: session.user.id, username: session.user.username || "user", walletAddress: null, isVerified: session.user.isVerified || false, profileImage: null };
+      actorId = session.user.id;
+      const dbUser = await prisma.user.findUnique({ where: { id: session.user.id } });
+      userData = {
+        id: session.user.id,
+        username: session.user.username || "user",
+        walletAddress: dbUser?.walletAddress ?? null,
+        isVerified: session.user.isVerified || false,
+        profileImage: dbUser?.profileImage ?? null,
+      };
     } else {
-      // Guest user
-      let guestUser = await prisma.user.findFirst({ where: { username: "guest" } });
-      if (!guestUser) {
-        guestUser = await prisma.user.create({ data: { username: "guest", email: null, password: null, isVerified: false } });
+      // Check for wallet authentication
+      const walletHeader = request.headers.get("x-wallet-address") || request.headers.get("X-Wallet-Address");
+      const wallet = walletHeader || walletAddress;
+      
+      if (wallet) {
+        let walletUser = await prisma.user.findFirst({ where: { walletAddress: wallet } });
+        if (!walletUser) {
+          const anonName = `anon_${wallet.slice(0, 6)}`;
+          walletUser = await prisma.user.create({
+            data: { username: anonName, walletAddress: wallet, isVerified: true },
+          });
+        }
+        userId = walletUser.id;
+        actorId = walletUser.id;
+        userData = {
+          id: walletUser.id,
+          username: walletUser.username,
+          walletAddress: walletUser.walletAddress,
+          isVerified: walletUser.isVerified,
+          profileImage: walletUser.profileImage ?? null,
+        };
+      } else {
+        // Guest user (no notifications)
+        let guestUser = await prisma.user.findFirst({ where: { username: "guest" } });
+        if (!guestUser) {
+          guestUser = await prisma.user.create({ data: { username: "guest", email: null, password: null, isVerified: false } });
+        }
+        userId = guestUser.id;
+        // actorId stays null for guests
+        userData = { id: guestUser.id, username: "Anonymous", walletAddress: null, isVerified: false, profileImage: null };
       }
-      userId = guestUser.id;
-      userData = { id: guestUser.id, username: "Anonymous", walletAddress: null, isVerified: false, profileImage: null };
     }
 
     const comment = await prisma.comment.create({
       data: { content: content.trim(), postId, userId },
       include: { user: { select: { id: true, username: true, walletAddress: true, isVerified: true, profileImage: true } } },
     });
+
+    // Get post owner
+    const post = await prisma.post.findUnique({ where: { id: postId }, select: { userId: true } });
+    
+    // Create notification if authenticated (email or wallet) and not commenting on own post
+    if (actorId && post && post.userId !== actorId) {
+      await prisma.notification.create({
+        data: {
+          userId: post.userId,
+          actorId: actorId,
+          type: "COMMENT",
+          postId,
+          commentId: comment.id,
+        },
+      });
+    }
 
     return NextResponse.json({ ...comment, user: userData });
   } catch (error) {

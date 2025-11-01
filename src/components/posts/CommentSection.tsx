@@ -16,7 +16,7 @@ interface CommentSectionProps {
 
 export default function CommentSection({ postId, isOpen, onClose }: CommentSectionProps) {
   const { data: session } = useSession();
-  const { publicKey } = useWallet();
+  const { connected, publicKey } = useWallet();
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -42,10 +42,17 @@ export default function CommentSection({ postId, isOpen, onClose }: CommentSecti
     if (!newComment.trim()) return;
     setIsSubmitting(true);
     try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (!session?.user && connected && publicKey) {
+        headers["X-Wallet-Address"] = publicKey.toBase58();
+      }
       const response = await fetch(`/api/posts/${postId}/comments`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: newComment }),
+        headers,
+        body: JSON.stringify({ 
+          content: newComment,
+          walletAddress: (!session?.user && connected && publicKey) ? publicKey.toBase58() : undefined,
+        }),
       });
       if (response.ok) {
         const created = await response.json();

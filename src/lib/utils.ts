@@ -52,6 +52,13 @@ export function extractTokenMentions(text: string): string[] {
   return text.match(tokenRegex) || [];
 }
 
+export function extractHashtags(text: string): string[] {
+  const hashtagRegex = /#[\w]+/g;
+  const matches = text.match(hashtagRegex) || [];
+  // Remove duplicates and normalize to lowercase
+  return [...new Set(matches.map(h => h.toLowerCase()))];
+}
+
 export function formatSOL(lamports: number): string {
   return (lamports / 1e9).toFixed(4);
 }

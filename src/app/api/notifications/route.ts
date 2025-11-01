@@ -6,10 +6,23 @@ import { prisma } from "@/lib/prisma";
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    let userId: string | null = session?.user?.id ?? null;
+
+    // Support wallet-only users
+    if (!userId) {
+      const wallet = request.headers.get("x-wallet-address") || request.headers.get("X-Wallet-Address");
+      if (wallet) {
+        const u = await prisma.user.findFirst({ where: { walletAddress: wallet } });
+        userId = u?.id ?? null;
+      }
+    }
+
+    if (!userId) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
 
     const notifications = await prisma.notification.findMany({
-      where: { userId: session.user.id },
+      where: { userId },
       orderBy: { createdAt: "desc" },
       take: 50,
       include: {
@@ -27,17 +40,31 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    let userId: string | null = session?.user?.id ?? null;
+
+    // Support wallet-only users
+    if (!userId) {
+      const wallet = request.headers.get("x-wallet-address") || request.headers.get("X-Wallet-Address");
+      if (wallet) {
+        const u = await prisma.user.findFirst({ where: { walletAddress: wallet } });
+        userId = u?.id ?? null;
+      }
+    }
+
+    if (!userId) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
     const body = await request.json().catch(() => ({}));
     const ids: string[] | undefined = body?.ids;
 
     if (ids && ids.length > 0) {
       await prisma.notification.updateMany({
-        where: { userId: session.user.id, id: { in: ids } },
+        where: { userId, id: { in: ids } },
         data: { read: true },
       });
     } else {
-      await prisma.notification.updateMany({ where: { userId: session.user.id, read: false }, data: { read: true } });
+      await prisma.notification.updateMany({ where: { userId, read: false }, data: { read: true } });
     }
 
     return NextResponse.json({ ok: true });

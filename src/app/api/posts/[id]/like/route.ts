@@ -11,27 +11,37 @@ export async function POST(
     const session = await getServerSession(authOptions);
     const { id: postId } = await params;
     
-    // For anonymous users, we'll use a guest user ID
-    let userId: string;
+    // Support both email and wallet authentication
+    let userId: string | null = null;
+    let actorId: string | null = null; // The user performing the action (for notifications)
+    
     if (session?.user?.id) {
       userId = session.user.id;
+      actorId = session.user.id;
     } else {
-      // Find or create guest user for anonymous interactions
-      let guestUser = await prisma.user.findFirst({
-        where: { username: "guest" },
-      });
-
-      if (!guestUser) {
-        guestUser = await prisma.user.create({
-          data: {
-            username: "guest",
-            email: null,
-            password: null,
-            isVerified: false,
-          },
-        });
+      // Check for wallet authentication
+      const walletHeader = request.headers.get("x-wallet-address") || request.headers.get("X-Wallet-Address");
+      if (walletHeader) {
+        let walletUser = await prisma.user.findFirst({ where: { walletAddress: walletHeader } });
+        if (!walletUser) {
+          const anonName = `anon_${walletHeader.slice(0, 6)}`;
+          walletUser = await prisma.user.create({
+            data: { username: anonName, walletAddress: walletHeader, isVerified: true },
+          });
+        }
+        userId = walletUser.id;
+        actorId = walletUser.id;
+      } else {
+        // Guest user for anonymous interactions (no notifications)
+        let guestUser = await prisma.user.findFirst({ where: { username: "guest" } });
+        if (!guestUser) {
+          guestUser = await prisma.user.create({
+            data: { username: "guest", email: null, password: null, isVerified: false },
+          });
+        }
+        userId = guestUser.id;
+        // actorId stays null for guests (no notifications)
       }
-      userId = guestUser.id;
     }
 
     // Check if post exists
@@ -84,14 +94,14 @@ export async function POST(
         data: { likesCount: { increment: 1 } },
       });
 
-      // Create notification if actor is authenticated and not liking own post
-      if (session?.user?.id) {
+      // Create notification if actor is authenticated (email or wallet) and not liking own post
+      if (actorId) {
         const postOwner = post.userId;
-        if (postOwner !== session.user.id) {
+        if (postOwner !== actorId) {
           await prisma.notification.create({
             data: {
               userId: postOwner,
-              actorId: session.user.id,
+              actorId: actorId,
               type: "LIKE",
               postId,
             },

@@ -10,10 +10,24 @@ export async function GET(request: NextRequest) {
     let user = await prisma.user.findFirst({ where: { walletAddress: address } });
     if (!user) {
       const anonName = `anon_${address.slice(0, 6)}`;
-      user = await prisma.user.create({ data: { username: anonName, walletAddress: address, isVerified: true } });
+      user = await prisma.user.create({ 
+        data: { 
+          username: anonName, 
+          walletAddress: address, 
+          isVerified: true,
+          email: null,
+          password: null,
+        } 
+      });
+    } else if (!user.walletAddress) {
+      // Update existing user if they don't have wallet address set
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: { walletAddress: address },
+      });
     }
 
-    return NextResponse.json({ user: { id: user.id, username: user.username } });
+    return NextResponse.json({ user: { id: user.id, username: user.username, walletAddress: user.walletAddress } });
   } catch (e) {
     console.error("byWallet error:", e);
     return NextResponse.json({ error: "Failed" }, { status: 500 });

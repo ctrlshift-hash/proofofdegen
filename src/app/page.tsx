@@ -5,6 +5,9 @@ import { useSession } from "next-auth/react";
 import Layout from "@/components/layout/Layout";
 import CreatePost from "@/components/posts/CreatePost";
 import PostCard from "@/components/posts/PostCard";
+import WhoToFollow from "@/components/sidebar/WhoToFollow";
+import Stories from "@/components/sidebar/Stories";
+import TopCoal from "@/components/sidebar/TopCoal";
 import { Button } from "@/components/ui/Button";
 import { Loader2, RefreshCw } from "lucide-react";
 import { useWallet } from "@/contexts/WalletContext";
@@ -13,7 +16,7 @@ import { useWallet } from "@/contexts/WalletContext";
 interface Post {
   id: string;
   content: string;
-  imageUrl?: string;
+  imageUrls?: string[];
   likesCount: number;
   repostsCount: number;
   commentsCount: number;
@@ -110,10 +113,12 @@ export default function HomePage() {
   };
 
   useEffect(() => {
+    // Seed users on initial load (only once)
+    fetch("/api/seed/users", { method: "POST" }).catch(() => {});
     fetchPosts();
   }, []);
 
-  const handleCreatePost = async (content: string, imageUrl?: string) => {
+  const handleCreatePost = async (content: string, imageUrls?: string[]) => {
     setIsSubmitting(true);
     try {
       const response = await fetch("/api/posts", {
@@ -121,7 +126,7 @@ export default function HomePage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ content, imageUrl, walletAddress: (!session?.user && connected && publicKey) ? publicKey.toBase58() : undefined }),
+        body: JSON.stringify({ content, imageUrls, walletAddress: (!session?.user && connected && publicKey) ? publicKey.toBase58() : undefined }),
       });
 
       if (response.ok) {
@@ -139,7 +144,7 @@ export default function HomePage() {
         const localPost: Post = {
           id: `local_${Date.now()}`,
           content,
-          imageUrl,
+          imageUrls: imageUrls || [],
           likesCount: 0,
           repostsCount: 0,
           commentsCount: 0,
@@ -162,10 +167,10 @@ export default function HomePage() {
       const now = new Date().toISOString();
       const walletAddr = (!session?.user && connected && publicKey) ? publicKey.toBase58() : undefined;
       const username = session?.user?.username || (walletAddr ? `anon_${walletAddr.slice(0,6)}` : "Anonymous");
-      const localPost: Post = {
-        id: `local_${Date.now()}`,
-        content,
-        imageUrl,
+        const localPost: Post = {
+          id: `local_${Date.now()}`,
+          content,
+          imageUrls: imageUrls || [],
         likesCount: 0,
         repostsCount: 0,
         commentsCount: 0,
@@ -188,8 +193,13 @@ export default function HomePage() {
 
   const handleLike = async (postId: string) => {
     try {
+      const headers: Record<string, string> = {};
+      if (!session?.user && connected && publicKey) {
+        headers["X-Wallet-Address"] = publicKey.toBase58();
+      }
       const response = await fetch(`/api/posts/${postId}/like`, {
         method: "POST",
+        headers,
       });
 
       if (response.ok) {
@@ -212,8 +222,13 @@ export default function HomePage() {
 
   const handleRepost = async (postId: string) => {
     try {
+      const headers: Record<string, string> = {};
+      if (!session?.user && connected && publicKey) {
+        headers["X-Wallet-Address"] = publicKey.toBase58();
+      }
       const response = await fetch(`/api/posts/${postId}/repost`, {
         method: "POST",
+        headers,
       });
 
       if (response.ok) {
@@ -240,8 +255,8 @@ export default function HomePage() {
   };
 
   const handleTip = (postId: string) => {
-    console.log("Tip post:", postId);
-    // TODO: Implement tipping functionality
+    // Tip functionality is handled in PostCard component via TipModal
+    // This callback is kept for backwards compatibility but doesn't need to do anything
   };
 
   const handleRefresh = async () => {
@@ -264,58 +279,72 @@ export default function HomePage() {
       walletAddress: undefined, // TODO: Get from wallet connection
       isVerified: session.user.isVerified || false,
     } : null}>
-      <div className="max-w-2xl mx-auto space-y-6">
-        {/* Create Post */}
-        <CreatePost 
-          onSubmit={handleCreatePost}
-          isSubmitting={isSubmitting}
-        />
+      <div className="max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Main Feed - 2 columns on large screens */}
+          <div className="lg:col-span-2 space-y-6 pb-24">
+            {/* Create Post */}
+            <CreatePost 
+              onSubmit={handleCreatePost}
+              isSubmitting={isSubmitting}
+            />
 
-        {/* Feed Header */}
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold">Home Feed</h2>
-          <Button
-            onClick={handleRefresh}
-            disabled={isLoading}
-            variant="outline"
-            size="sm"
-          >
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCw className="h-4 w-4" />
-            )}
-            <span className="ml-2">Refresh</span>
-          </Button>
-        </div>
+            {/* Feed Header */}
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold">Home Feed</h2>
+              <Button
+                onClick={handleRefresh}
+                disabled={isLoading}
+                variant="outline"
+                size="sm"
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                <span className="ml-2">Refresh</span>
+              </Button>
+            </div>
 
-        {/* Posts Feed */}
-        <div className="space-y-4">
-          {isLoading ? (
-            <div className="text-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-              <p className="text-muted-foreground">Loading posts...</p>
+            {/* Posts Feed */}
+            <div className="space-y-4">
+              {isLoading ? (
+                <div className="text-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+                  <p className="text-muted-foreground">Loading posts...</p>
+                </div>
+              ) : posts.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground mb-4">No posts yet</p>
+                  <p className="text-sm text-muted-foreground">
+                    Be the first to share something with the degen community!
+                  </p>
+                </div>
+              ) : (
+                posts.map((post) => (
+                  <PostCard
+                    key={post.id}
+                    post={post}
+                    onLike={handleLike}
+                    onRepost={handleRepost}
+                    onComment={handleComment}
+                    onTip={handleTip}
+                    onDeleted={(id) => setPosts(prev => prev.filter(p => p.id !== id))}
+                  />
+                ))
+              )}
             </div>
-          ) : posts.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground mb-4">No posts yet</p>
-              <p className="text-sm text-muted-foreground">
-                Be the first to share something with the degen community!
-              </p>
+          </div>
+
+          {/* Sidebar - 1 column on large screens */}
+          <div className="lg:col-span-1">
+            <div className="sticky top-4 space-y-6">
+              <WhoToFollow />
+              <Stories />
+              <TopCoal />
             </div>
-          ) : (
-            posts.map((post) => (
-              <PostCard
-                key={post.id}
-                post={post}
-                onLike={handleLike}
-                onRepost={handleRepost}
-                onComment={handleComment}
-                onTip={handleTip}
-                onDeleted={(id) => setPosts(prev => prev.filter(p => p.id !== id))}
-              />
-            ))
-          )}
+          </div>
         </div>
       </div>
     </Layout>

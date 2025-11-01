@@ -41,8 +41,11 @@ export function WalletContextProvider({ children }: WalletProviderProps) {
   const [connecting, setConnecting] = useState(false);
   const { data: session } = useSession(); // get current user session
 
-  const network = WalletAdapterNetwork.Devnet;
-  const endpoint = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.devnet.solana.com";
+  // Use mainnet for real wallets - Helius prioritized
+  const network = WalletAdapterNetwork.Mainnet;
+  const endpoint = process.env.NEXT_PUBLIC_HELIUS_RPC_URL ||
+    process.env.NEXT_PUBLIC_SOLANA_RPC_URL ||
+    "https://api.mainnet-beta.solana.com";
 
   const wallets = [
     new PhantomWalletAdapter(),
@@ -55,15 +58,25 @@ export function WalletContextProvider({ children }: WalletProviderProps) {
   }, [endpoint]);
 
   useEffect(() => {
-    // Sync wallet to backend when connected and authenticated
+    // Sync wallet to backend when connected
+    // Works for both email-authenticated users and wallet-only users
     async function syncWalletToProfile() {
-      if (connected && publicKey && session?.user?.id) {
+      if (connected && publicKey) {
         try {
-          await fetch("/api/auth/updateWallet", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ walletAddress: publicKey.toBase58() }),
-          });
+          const walletAddr = publicKey.toBase58();
+          
+          if (session?.user?.id) {
+            // Email-authenticated user - update existing account
+            await fetch("/api/auth/updateWallet", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ walletAddress: walletAddr }),
+            });
+          } else {
+            // Wallet-only user - ensure user exists with wallet address
+            // This creates or updates the user via byWallet endpoint
+            await fetch(`/api/users/byWallet?address=${encodeURIComponent(walletAddr)}`);
+          }
         } catch (error) {
           console.error("Failed to sync wallet address to backend:", error);
         }

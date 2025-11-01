@@ -10,17 +10,26 @@ import {
   User, 
   Settings,
   Hash,
-  TrendingUp
+  TrendingUp,
+  Wallet,
+  TrendingDown,
+  Newspaper,
+  Skull,
+  ThumbsDown
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/", icon: Home, label: "Home" },
+  { href: "/news", icon: Newspaper, label: "News" },
   { href: "/search", icon: Search, label: "Search" },
   { href: "/notifications", icon: Bell, label: "Notifications" },
   { href: "/messages", icon: MessageCircle, label: "Messages" },
   { href: "/channels", icon: Hash, label: "Channels" },
   { href: "/trending", icon: TrendingUp, label: "Trending" },
+  { href: "/top-traders", icon: Wallet, label: "Top Traders" },
+  { href: "/jeet-leaderboard", icon: ThumbsDown, label: "Jeet Leaderboard" },
+  { href: "/coal-station", icon: Skull, label: "Coal Station" },
 ];
 
 export default function Sidebar() {

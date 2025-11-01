@@ -5,6 +5,7 @@ import Layout from "@/components/layout/Layout";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/Button";
 import { useWallet } from "@/contexts/WalletContext";
+import { playNotificationSound } from "@/lib/sounds";
 
 interface UserRef { id: string; username: string }
 interface Message {
@@ -24,6 +25,8 @@ export default function MessagesPage() {
   const [composeTo, setComposeTo] = useState("");
   const [newMessage, setNewMessage] = useState("");
   const [loadingThread, setLoadingThread] = useState(false);
+  const [lastThreadMessageId, setLastThreadMessageId] = useState<string | null>(null);
+  const [hasInitializedThread, setHasInitializedThread] = useState(false);
   const canSend = !!session?.user || (connected && !!publicKey);
   const myUsername = useMemo(() => (session?.user as any)?.username as string | undefined, [session?.user]);
 
@@ -44,6 +47,7 @@ export default function MessagesPage() {
   };
 
   const openThread = async (username: string) => {
+    const wasAlreadyOpen = activeUsername === username;
     setActiveUsername(username);
     setLoadingThread(true);
     try {
@@ -52,7 +56,35 @@ export default function MessagesPage() {
       const res = await fetch(`/api/messages/${encodeURIComponent(username)}`, { headers });
       if (res.ok) {
         const data = await res.json();
-        setThread(data.messages || []);
+        const newMessages = data.messages || [];
+        
+        // Check if new messages arrived (and thread was already open)
+        if (wasAlreadyOpen && newMessages.length > 0) {
+          const latestMessage = newMessages[newMessages.length - 1];
+          // Check if we have a previous message ID (thread was already loaded and initialized)
+          if (hasInitializedThread && lastThreadMessageId !== null && latestMessage.id !== lastThreadMessageId) {
+            // Check if it's not our own message (don't play sound for our own messages)
+            let ourId: string | null = null;
+            if (session?.user) {
+              ourId = (session.user as any).id;
+            }
+            // For wallet users, we'll still check but be more lenient
+            if (!ourId || latestMessage.sender.id !== ourId) {
+              playNotificationSound('message');
+            }
+          }
+          // Always update the last message ID
+          setLastThreadMessageId(latestMessage.id);
+          if (!hasInitializedThread) {
+            setHasInitializedThread(true);
+          }
+        } else {
+          // Reset when opening new thread (different username or first time)
+          setLastThreadMessageId(newMessages.length > 0 ? newMessages[newMessages.length - 1].id : null);
+          setHasInitializedThread(false);
+        }
+        
+        setThread(newMessages);
       } else if (res.status === 401) {
         console.warn("Not authenticated to open thread.");
       }
@@ -69,8 +101,41 @@ export default function MessagesPage() {
     loadConversations();
     // polling
     const id = setInterval(async () => {
+      const prevConversations = [...conversations];
       await loadConversations();
-      if (activeUsername) await openThread(activeUsername);
+      
+      // Check for new messages in conversations (when not viewing active thread)
+      if (!activeUsername) {
+        conversations.forEach((conv) => {
+          const prev = prevConversations.find(c => c.id === conv.id);
+          if (prev && conv.lastMessage && prev.lastMessage?.id !== conv.lastMessage?.id) {
+            // Check if it's not our own message
+            const lastMsg = conv.lastMessage;
+            if (lastMsg) {
+              // Get our user ID
+              let ourId: string | null = null;
+              if (session?.user) {
+                ourId = (session.user as any).id;
+              } else if (connected && publicKey) {
+                // For wallet users, we need to find our user ID
+                // Since we can't easily get it here, we'll play sound if the message is from someone else
+                // The sound will play if it's a new message (different ID)
+              }
+              
+              // If we can determine our ID and it's not our message, play sound
+              // Otherwise, if we can't determine (wallet), play sound anyway (safe to notify)
+              if (!ourId || lastMsg.sender.id !== ourId) {
+                playNotificationSound('message');
+              }
+            }
+          }
+        });
+      }
+      
+      // Update thread if active
+      if (activeUsername) {
+        await openThread(activeUsername);
+      }
     }, poll.interval);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps

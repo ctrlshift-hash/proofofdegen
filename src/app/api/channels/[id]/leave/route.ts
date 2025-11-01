@@ -9,13 +9,19 @@ export async function POST(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     const { id } = await params;
 
-    await prisma.channel.update({
-      where: { id },
-      data: { members: { disconnect: { id: session.user.id } } },
-    });
+    let userId: string | null = session?.user?.id ?? null;
+    if (!userId) {
+      const wallet = request.headers.get("x-wallet-address") || request.headers.get("X-Wallet-Address");
+      if (wallet) {
+        const u = await prisma.user.findFirst({ where: { walletAddress: wallet } });
+        if (u) userId = u.id;
+      }
+    }
+    if (!userId) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+
+    await prisma.channel.update({ where: { id }, data: { members: { disconnect: { id: userId } } } });
 
     return NextResponse.json({ joined: false });
   } catch (e) {

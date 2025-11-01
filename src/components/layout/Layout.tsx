@@ -11,6 +11,7 @@ interface LayoutProps {
     username: string;
     walletAddress?: string;
     isVerified: boolean;
+    profileImage?: string;
   } | null;
 }
 

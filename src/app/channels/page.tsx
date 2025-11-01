@@ -13,6 +13,7 @@ import {
   TrendingUp
 } from "lucide-react";
 import { useSession } from "next-auth/react";
+import { useWallet } from "@/contexts/WalletContext";
 
 interface ChannelItem {
   id: string;
@@ -30,6 +31,7 @@ interface ChannelItem {
 
 export default function ChannelsPage() {
   const { data: session } = useSession();
+  const { connected, publicKey } = useWallet();
   const [channels, setChannels] = useState<ChannelItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -50,6 +52,25 @@ export default function ChannelsPage() {
       console.error("Failed to load channels", e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const createChannel = async () => {
+    const name = window.prompt("Channel name (min 3 chars)")?.trim();
+    if (!name) return;
+    const description = window.prompt("Description (optional)")?.trim() || undefined;
+    try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (!session?.user && connected && publicKey) headers["X-Wallet-Address"] = publicKey.toBase58();
+      const res = await fetch("/api/channels", { method: "POST", headers, body: JSON.stringify({ name, description }) });
+      if (res.ok) {
+        await load();
+      } else {
+        const err = await res.json();
+        alert(err.error || "Failed to create channel");
+      }
+    } catch (e) {
+      console.error("Create channel failed", e);
     }
   };
 
@@ -77,7 +98,9 @@ export default function ChannelsPage() {
 
   const handleJoinChannel = async (channelId: string) => {
     try {
-      const res = await fetch(`/api/channels/${channelId}/join`, { method: "POST" });
+      const headers: Record<string, string> = {};
+      if (!session?.user && connected && publicKey) headers["X-Wallet-Address"] = publicKey.toBase58();
+      const res = await fetch(`/api/channels/${channelId}/join`, { method: "POST", headers });
       if (res.ok) {
         setChannels(prev => prev.map(c => c.id === channelId ? { ...c, isJoined: true, memberCount: c.memberCount + 1 } : c));
       }
@@ -88,7 +111,9 @@ export default function ChannelsPage() {
 
   const handleLeaveChannel = async (channelId: string) => {
     try {
-      const res = await fetch(`/api/channels/${channelId}/leave`, { method: "POST" });
+      const headers: Record<string, string> = {};
+      if (!session?.user && connected && publicKey) headers["X-Wallet-Address"] = publicKey.toBase58();
+      const res = await fetch(`/api/channels/${channelId}/leave`, { method: "POST", headers });
       if (res.ok) {
         setChannels(prev => prev.map(c => c.id === channelId ? { ...c, isJoined: false, memberCount: Math.max(0, c.memberCount - 1) } : c));
       }
@@ -115,7 +140,7 @@ export default function ChannelsPage() {
             <h1 className="text-3xl font-bold">Channels</h1>
             <p className="text-muted-foreground">Join communities and access exclusive token-gated channels</p>
           </div>
-          <Button className="btn-primary">
+          <Button className="btn-primary" onClick={createChannel}>
             <Plus className="h-4 w-4 mr-2" />
             Create Channel
           </Button>
@@ -148,7 +173,7 @@ export default function ChannelsPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {sortedChannels.map((channel) => (
-            <div key={channel.id} className="card hover:bg-card/50 transition-colors">
+            <div key={channel.id} className="card hover:bg-card/50 transition-colors cursor-pointer" onClick={() => window.location.assign(`/channels/${channel.id}`)}>
               <div className="space-y-4">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center space-x-2">

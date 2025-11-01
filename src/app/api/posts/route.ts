@@ -3,22 +3,63 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+function extractHashtags(text: string): string[] {
+  const hashtagRegex = /#[\w]+/g;
+  const matches = text.match(hashtagRegex) || [];
+  return [...new Set(matches.map(h => h.toLowerCase()))];
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "10");
     const skip = (page - 1) * limit;
+    const hashtag = searchParams.get("hashtag");
+
+    // Bot usernames to exclude from feed
+    const botUsernames = [
+      "cryptodegen",
+      "pumpsignal",
+      "solbuilder",
+      "nftcollector",
+      "tradingalpha",
+      "degenshark",
+      "web3teacher",
+      "memecoinking",
+      "solstaker",
+      "artblockchain",
+    ];
+
+    let whereClause: any = {
+      user: {
+        username: {
+          notIn: botUsernames,
+        },
+      },
+    };
+    
+    // Filter by hashtag if provided
+    if (hashtag) {
+      // Prisma doesn't support regex directly, so we'll filter after fetching
+      // This is less efficient but works for now
+      whereClause = {
+        ...whereClause,
+        content: { contains: "#" },
+      };
+    }
 
     const posts = await prisma.post.findMany({
       skip,
-      take: limit,
+      take: hashtag ? 500 : limit, // Fetch more if filtering by hashtag
       orderBy: { createdAt: "desc" },
+      where: whereClause,
       include: {
         user: {
           select: {
             id: true,
             username: true,
+            email: true,
             walletAddress: true,
             isVerified: true,
             profileImage: true,
@@ -34,10 +75,25 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    // Filter by hashtag in memory if needed
+    let filteredPosts = posts;
+    if (hashtag) {
+      const normalizedHashtag = hashtag.toLowerCase().startsWith("#") 
+        ? hashtag.toLowerCase() 
+        : `#${hashtag.toLowerCase()}`;
+      filteredPosts = posts.filter(post => {
+        const postHashtags = extractHashtags(post.content);
+        return postHashtags.includes(normalizedHashtag);
+      });
+      // Apply pagination after filtering
+      filteredPosts = filteredPosts.slice(skip, skip + limit);
+    }
+
     // Get user's likes and reposts if authenticated
     const session = await getServerSession(authOptions);
     let userLikes: string[] = [];
     let userReposts: string[] = [];
+    let userDownvotes: string[] = [];
 
     if (session?.user?.id) {
       const userInteractions = await prisma.like.findMany({
@@ -51,15 +107,24 @@ export async function GET(request: NextRequest) {
         select: { postId: true },
       });
       userReposts = userRepostData.map(repost => repost.postId);
+
+      try {
+        const userDownvoteData = await prisma.downvote.findMany({
+          where: { userId: session.user.id },
+          select: { postId: true },
+        });
+        userDownvotes = userDownvoteData.map(d => d.postId);
+      } catch {}
     }
 
-    const postsWithInteractions = posts.map(post => ({
+    const postsWithInteractions = filteredPosts.map(post => ({
       ...post,
       likesCount: post._count.likes,
       repostsCount: post._count.reposts,
       commentsCount: post._count.comments,
       isLiked: userLikes.includes(post.id),
       isReposted: userReposts.includes(post.id),
+      isDownvoted: userDownvotes.includes(post.id),
       _count: undefined,
     }));
 
@@ -68,7 +133,7 @@ export async function GET(request: NextRequest) {
       pagination: {
         page,
         limit,
-        hasMore: posts.length === limit,
+        hasMore: filteredPosts.length === limit,
       },
     });
   } catch (error) {
@@ -83,18 +148,32 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    const { content, imageUrl, walletAddress } = await request.json();
+    const { content, imageUrl, imageUrls, walletAddress } = await request.json();
 
-    if (!content || content.trim().length === 0) {
+    // Support both single imageUrl (backwards compat) and array of imageUrls
+    const images = imageUrls || (imageUrl ? [imageUrl] : []);
+    
+    // Allow posting with just images (no text required)
+    const hasContent = content && content.trim().length > 0;
+    const hasImages = images.length > 0;
+    
+    if (!hasContent && !hasImages) {
       return NextResponse.json(
-        { error: "Content is required" },
+        { error: "Post must have either content or images" },
         { status: 400 }
       );
     }
 
-    if (content.length > 500) {
+    if (hasContent && content.length > 500) {
       return NextResponse.json(
         { error: "Content must be 500 characters or less" },
+        { status: 400 }
+      );
+    }
+
+    if (images.length > 4) {
+      return NextResponse.json(
+        { error: "Maximum 4 images per post" },
         { status: 400 }
       );
     }
@@ -152,8 +231,8 @@ export async function POST(request: NextRequest) {
 
     const post = await prisma.post.create({
       data: {
-        content: content.trim(),
-        imageUrl: imageUrl || null,
+        content: (content || "").trim(),
+        imageUrls: images,
         userId: userId,
       },
       include: {

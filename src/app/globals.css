@@ -8,21 +8,49 @@
   }
   body {
     @apply bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100;
+    /* Revert to degen dark gradient background */
+    background-image: radial-gradient(ellipse at 20% 10%, rgba(168,85,247,0.08), transparent 40%), radial-gradient(ellipse at 80% 0%, rgba(236,72,153,0.06), transparent 40%);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
+  h1 { @apply text-2xl font-bold leading-tight; }
+  h2 { @apply text-xl font-semibold leading-snug; }
+  h3 { @apply text-lg font-semibold leading-snug; }
+  p  { @apply leading-relaxed; }
 }
 
 @layer components {
   .btn-primary {
     @apply bg-purple-600 hover:bg-purple-700 text-white font-medium px-4 py-2 rounded-lg transition-colors;
   }
+  .btn-glow {
+    @apply relative overflow-hidden rounded-lg px-4 py-2 font-semibold text-white bg-purple-600 shadow-lg shadow-purple-500/30 transition-all;
+  }
+  .btn-glow:hover { filter: brightness(1.05); box-shadow: 0 10px 25px -10px rgba(168,85,247,0.6); }
+  .btn-glow::after {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    background: radial-gradient(60% 60% at 50% 0%, rgba(255,255,255,0.25), transparent 60%);
+    opacity: .25;
+  }
   
   .btn-secondary {
     @apply bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium px-4 py-2 rounded-lg transition-colors;
   }
+
+  /* Twitter-like Pills & Icon buttons */
+  .pill-btn { @apply rounded-full font-semibold px-5 py-2 transition-all bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700; }
+  .pill-btn-primary { @apply rounded-full font-semibold px-5 py-2 text-white bg-purple-600 hover:bg-purple-700 shadow-md shadow-purple-500/20; }
+  .icon-btn { @apply rounded-full p-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors; }
+  .icon-btn-lg { @apply rounded-full p-3 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors; }
   
   .card {
-    @apply bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm;
+    @apply bg-white/90 dark:bg-gray-800/80 backdrop-blur text-gray-900 dark:text-gray-100 rounded-lg border border-gray-200/50 dark:border-gray-700/50 p-6 shadow-sm transition-transform;
   }
+  .card:hover { transform: translateY(-1px); }
+  .card--tight { @apply p-4 rounded-xl; }
+  .glass { @apply bg-white/10 dark:bg-gray-900/20 backdrop-blur border border-white/10 dark:border-white/10; }
   
   .input {
     @apply flex h-10 w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:cursor-not-allowed disabled:opacity-50;
@@ -35,4 +63,51 @@
   .degen-glow {
     @apply shadow-lg shadow-purple-500/25;
   }
+
+  /* Feed/List row hover */
+  .row { @apply transition-colors; }
+  .row:hover { @apply bg-gray-50 dark:bg-gray-800/60; }
+
+  /* Animated social pill (Post-style) */
+  .btn-post {
+    @apply rounded-full font-semibold text-white px-6 py-3 bg-gray-900 dark:bg-gray-800 transition-all shadow-xl;
+    box-shadow: 0 8px 24px -12px rgba(0,0,0,0.4);
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-post:hover {
+    filter: brightness(1.05);
+    box-shadow: 0 14px 30px -14px rgba(59,130,246,0.45);
+  }
+  .btn-post:active { transform: translateY(1px) scale(0.99); }
+  .btn-post::after {
+    content: "";
+    position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%);
+    transform: translateX(-150%);
+  }
+  .btn-post:hover::after { animation: sheen 0.9s ease; }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-in-out;
+}
+
+@keyframes pop-in { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
+.animate-pop-in { animation: pop-in .18s cubic-bezier(.2,.7,.3,1) both; }
+
+@keyframes sheen {
+  0% { transform: translateX(-150%); }
+  100% { transform: translateX(150%); }
 }
