@@ -73,7 +73,7 @@ export default function CoalStationPage() {
                 <div className="text-muted-foreground">No posts yet. Be the first to drop some coal.</div>
               ) : (
                 posts.map((p) => (
-                  <PostCard key={p.id} post={p} onLike={()=>{}} onRepost={()=>{}} onComment={()=>{}} onTip={()=>{}} onDeleted={(id)=>setPosts(prev=>prev.filter(x=>x.id!==id))} />
+                  <PostCard key={p.id} post={p} onLike={async()=>{}} onRepost={async()=>{}} onComment={async()=>{}} onTip={async()=>{}} onDeleted={(id)=>setPosts(prev=>prev.filter(x=>x.id!==id))} />
                 ))
               )}
             </div>
