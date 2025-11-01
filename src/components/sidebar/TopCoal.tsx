@@ -18,6 +18,21 @@ export default function TopCoal() {
   const [posts, setPosts] = useState<TopPost[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
+  // Load cached posts on mount
+  useEffect(() => {
+    try {
+      const cached = localStorage.getItem("topcoal_posts");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        // Only use cache if it's recent (within 2 minutes)
+        if (parsed.timestamp && Date.now() - parsed.timestamp < 2 * 60 * 1000) {
+          setPosts(parsed.data || []);
+          setLoading(false);
+        }
+      }
+    } catch {}
+  }, []);
+
   useEffect(() => {
     const load = async () => {
       try {
@@ -26,6 +41,13 @@ export default function TopCoal() {
         if (res.ok) {
           const data = await res.json();
           setPosts(data.posts || []);
+          // Cache posts
+          try {
+            localStorage.setItem("topcoal_posts", JSON.stringify({
+              data: data.posts || [],
+              timestamp: Date.now()
+            }));
+          } catch {}
         }
       } catch {} finally { setLoading(false); }
     };

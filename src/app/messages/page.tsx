@@ -30,6 +30,35 @@ export default function MessagesPage() {
   const canSend = !!session?.user || (connected && !!publicKey);
   const myUsername = useMemo(() => (session?.user as any)?.username as string | undefined, [session?.user]);
 
+  // Load cached conversations on mount
+  useEffect(() => {
+    try {
+      const cached = localStorage.getItem("messages_conversations");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        // Only use cache if it's recent (within 5 minutes)
+        if (parsed.timestamp && Date.now() - parsed.timestamp < 5 * 60 * 1000) {
+          setConversations(parsed.data || []);
+        }
+      }
+    } catch {}
+  }, []);
+
+  // Load cached thread on mount
+  useEffect(() => {
+    if (activeUsername) {
+      try {
+        const cached = localStorage.getItem(`messages_thread_${activeUsername}`);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed.timestamp && Date.now() - parsed.timestamp < 5 * 60 * 1000) {
+            setThread(parsed.data || []);
+          }
+        }
+      } catch {}
+    }
+  }, [activeUsername]);
+
   const loadConversations = async () => {
     try {
       const headers: Record<string, string> = {};
@@ -40,6 +69,13 @@ export default function MessagesPage() {
       if (res.ok) {
         const data = await res.json();
         setConversations(data.conversations || []);
+        // Cache conversations
+        try {
+          localStorage.setItem("messages_conversations", JSON.stringify({
+            data: data.conversations || [],
+            timestamp: Date.now()
+          }));
+        } catch {}
       }
     } catch (e) {
       console.error("Failed to load conversations", e);
@@ -85,6 +121,13 @@ export default function MessagesPage() {
         }
         
         setThread(newMessages);
+        // Cache thread
+        try {
+          localStorage.setItem(`messages_thread_${username}`, JSON.stringify({
+            data: newMessages,
+            timestamp: Date.now()
+          }));
+        } catch {}
       } else if (res.status === 401) {
         console.warn("Not authenticated to open thread.");
       }

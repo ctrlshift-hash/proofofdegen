@@ -97,6 +97,21 @@ export default function HomePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Load cached posts on mount
+  useEffect(() => {
+    try {
+      const cached = localStorage.getItem("home_posts");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        // Only use cache if it's recent (within 3 minutes)
+        if (parsed.timestamp && Date.now() - parsed.timestamp < 3 * 60 * 1000) {
+          setPosts(parsed.data || []);
+          setIsLoading(false);
+        }
+      }
+    } catch {}
+  }, []);
+
   // Fetch posts from API
   const fetchPosts = async () => {
     try {
@@ -104,6 +119,13 @@ export default function HomePage() {
       if (response.ok) {
         const data = await response.json();
         setPosts(data.posts);
+        // Cache posts
+        try {
+          localStorage.setItem("home_posts", JSON.stringify({
+            data: data.posts,
+            timestamp: Date.now()
+          }));
+        } catch {}
       }
     } catch (error) {
       console.error("Failed to fetch posts:", error);
