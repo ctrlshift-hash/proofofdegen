@@ -121,9 +121,7 @@ export default function WhoToFollow() {
 
   useEffect(() => {
     loadSuggestions();
-    // Refresh suggestions every 60 seconds to rotate users
-    const interval = setInterval(loadSuggestions, 60000);
-    return () => clearInterval(interval);
+    // NO auto-refresh - who to follow stays frozen for user
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once on mount, no dependencies
 
