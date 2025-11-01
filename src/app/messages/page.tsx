@@ -44,20 +44,6 @@ export default function MessagesPage() {
     } catch {}
   }, []);
 
-  // Load cached thread on mount
-  useEffect(() => {
-    if (activeUsername) {
-      try {
-        const cached = localStorage.getItem(`messages_thread_${activeUsername}`);
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (parsed.timestamp && Date.now() - parsed.timestamp < 5 * 60 * 1000) {
-            setThread(parsed.data || []);
-          }
-        }
-      } catch {}
-    }
-  }, [activeUsername]);
 
   const loadConversations = async () => {
     try {
@@ -89,7 +75,22 @@ export default function MessagesPage() {
   const openThread = async (username: string) => {
     const wasAlreadyOpen = activeUsername === username;
     setActiveUsername(username);
-    setLoadingThread(true);
+    
+    // Check cache first before showing loading
+    let hasCachedData = false;
+    try {
+      const cached = localStorage.getItem(`messages_thread_${username}`);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed.timestamp && Date.now() - parsed.timestamp < 5 * 60 * 1000 && Array.isArray(parsed.data)) {
+          setThread(parsed.data);
+          hasCachedData = true;
+        }
+      }
+    } catch {}
+    
+    setLoadingThread(!hasCachedData); // Only show loading if we don't have cached data
+    
     try {
       const headers: Record<string, string> = {};
       if (!session?.user && connected && publicKey) headers["X-Wallet-Address"] = publicKey.toBase58();
