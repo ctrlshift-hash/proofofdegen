@@ -178,7 +178,7 @@ export async function GET(
 
       // Check if transaction involves known DEX programs
       // Also check instructions for program IDs (some DEXes use them differently)
-      const accountKeys = tx.transaction.message.accountKeys.map(key => key.pubkey.toBase58());
+      const accountKeys = tx.transaction.message.accountKeys.map((key: any) => key.pubkey.toBase58());
       const instructionProgramIds: string[] = [];
       
       // Extract program IDs from instructions
