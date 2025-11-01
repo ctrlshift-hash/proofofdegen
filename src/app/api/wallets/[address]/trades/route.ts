@@ -245,7 +245,7 @@ export async function GET(
       // Track token balance changes
       for (const pre of preBalances) {
         const post = postBalances.find(
-          p => p.accountIndex === pre.accountIndex && 
+          (p: any) => p.accountIndex === pre.accountIndex && 
                p.mint === pre.mint &&
                p.owner === pre.owner
         );
