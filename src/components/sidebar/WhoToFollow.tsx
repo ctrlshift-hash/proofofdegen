@@ -121,11 +121,11 @@ export default function WhoToFollow() {
 
   useEffect(() => {
     loadSuggestions();
-    // Refresh suggestions every 30 seconds to rotate users
-    const interval = setInterval(loadSuggestions, 30000);
+    // Refresh suggestions every 60 seconds to rotate users
+    const interval = setInterval(loadSuggestions, 60000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session, connected, publicKey]);
+  }, []); // Only run once on mount, no dependencies
 
   if (!session?.user && !connected) {
     return null; // Don't show if not logged in

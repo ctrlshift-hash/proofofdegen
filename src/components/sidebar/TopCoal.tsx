@@ -80,25 +80,31 @@ export default function TopCoal() {
     );
   }
 
-  if (posts.length === 0) return null;
-
   return (
     <div className="rounded-lg border border-border bg-card">
       <div className="p-4 border-b border-border font-semibold">Top Coal Today</div>
-      <div className="p-2 space-y-2">
-        {posts.map((p) => (
-          <Link key={p.id} href="/coal-station" className="block p-2 rounded hover:bg-accent">
-            <div className="text-sm line-clamp-2">{p.content}</div>
-            <div className="text-xs text-muted-foreground mt-1">
-              {p.likesCount} agree • {(p.downvotesCount ?? 0)} disagree • {new Date(p.createdAt).toLocaleTimeString()}
-            </div>
-          </Link>
-        ))}
-      </div>
-      {pathname !== "/coal-station" && (
-        <div className="p-2 text-right">
-          <Link href="/coal-station" className="pill-btn-primary inline-block text-xs">Open Coal Station</Link>
+      {posts.length === 0 ? (
+        <div className="p-4 text-center text-muted-foreground text-sm">
+          No coal posts yet
         </div>
+      ) : (
+        <>
+          <div className="p-2 space-y-2">
+            {posts.map((p) => (
+              <Link key={p.id} href="/coal-station" className="block p-2 rounded hover:bg-accent">
+                <div className="text-sm line-clamp-2">{p.content}</div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {p.likesCount} agree • {(p.downvotesCount ?? 0)} disagree • {new Date(p.createdAt).toLocaleTimeString()}
+                </div>
+              </Link>
+            ))}
+          </div>
+          {pathname !== "/coal-station" && (
+            <div className="p-2 text-right">
+              <Link href="/coal-station" className="pill-btn-primary inline-block text-xs">Open Coal Station</Link>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
