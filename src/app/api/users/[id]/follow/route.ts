@@ -84,7 +84,7 @@ export async function POST(
       await prisma.notification.create({
         data: {
           type: "FOLLOW",
-          recipientId: targetUserId,
+          userId: targetUserId,
           actorId: actorId,
         },
       });
