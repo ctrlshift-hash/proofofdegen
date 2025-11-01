@@ -68,14 +68,18 @@ export default function MessagesPage() {
       const res = await fetch("/api/messages", { headers });
       if (res.ok) {
         const data = await res.json();
-        setConversations(data.conversations || []);
-        // Cache conversations
-        try {
-          localStorage.setItem("messages_conversations", JSON.stringify({
-            data: data.conversations || [],
-            timestamp: Date.now()
-          }));
-        } catch {}
+        const newConversations = data.conversations || [];
+        // Only update if we got valid data
+        if (Array.isArray(newConversations)) {
+          setConversations(newConversations);
+          // Cache conversations
+          try {
+            localStorage.setItem("messages_conversations", JSON.stringify({
+              data: newConversations,
+              timestamp: Date.now()
+            }));
+          } catch {}
+        }
       }
     } catch (e) {
       console.error("Failed to load conversations", e);
@@ -120,14 +124,17 @@ export default function MessagesPage() {
           setHasInitializedThread(false);
         }
         
-        setThread(newMessages);
-        // Cache thread
-        try {
-          localStorage.setItem(`messages_thread_${username}`, JSON.stringify({
-            data: newMessages,
-            timestamp: Date.now()
-          }));
-        } catch {}
+        // Only update if we got valid data
+        if (Array.isArray(newMessages)) {
+          setThread(newMessages);
+          // Cache thread
+          try {
+            localStorage.setItem(`messages_thread_${username}`, JSON.stringify({
+              data: newMessages,
+              timestamp: Date.now()
+            }));
+          } catch {}
+        }
       } else if (res.status === 401) {
         console.warn("Not authenticated to open thread.");
       }

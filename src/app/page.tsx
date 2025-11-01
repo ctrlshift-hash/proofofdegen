@@ -118,14 +118,18 @@ export default function HomePage() {
       const response = await fetch("/api/posts");
       if (response.ok) {
         const data = await response.json();
-        setPosts(data.posts);
-        // Cache posts
-        try {
-          localStorage.setItem("home_posts", JSON.stringify({
-            data: data.posts,
-            timestamp: Date.now()
-          }));
-        } catch {}
+        const newPosts = data.posts;
+        // Only update if we got valid data
+        if (Array.isArray(newPosts)) {
+          setPosts(newPosts);
+          // Cache posts
+          try {
+            localStorage.setItem("home_posts", JSON.stringify({
+              data: newPosts,
+              timestamp: Date.now()
+            }));
+          } catch {}
+        }
       }
     } catch (error) {
       console.error("Failed to fetch posts:", error);

@@ -36,20 +36,23 @@ export default function TopCoal() {
   useEffect(() => {
     const load = async () => {
       try {
-        setLoading(true);
         const res = await fetch("/api/coal/top?period=today");
         if (res.ok) {
           const data = await res.json();
-          setPosts(data.posts || []);
-          // Cache posts
-          try {
-            localStorage.setItem("topcoal_posts", JSON.stringify({
-              data: data.posts || [],
-              timestamp: Date.now()
-            }));
-          } catch {}
+          const newPosts = data.posts || [];
+          // Only update if we got valid data
+          if (Array.isArray(newPosts)) {
+            setPosts(newPosts);
+            // Cache posts
+            try {
+              localStorage.setItem("topcoal_posts", JSON.stringify({
+                data: newPosts,
+                timestamp: Date.now()
+              }));
+            } catch {}
+          }
         }
-      } catch {} finally { setLoading(false); }
+      } catch {}
     };
     load();
     const interval = setInterval(load, 15000); // refresh every 15s
